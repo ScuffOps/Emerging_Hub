@@ -3,6 +3,8 @@
 export const characterData = {
   name: "Veri",
   avatar: "https://customer-assets.emergentagent.com/job_a5642998-d1ff-4501-9f69-da4970bc345c/artifacts/76c60ckv_Tenko%20Head%20Doodle.png",
+  fullBody: "https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/p47musk1_Viking%20Tongue%20FIN.png",
+  altBody: "https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/6bjkr1br_Heavens%20trans%20UPDATED%20FINAL.png",
   tagline: "Digital Kitsune Spirit",
   themeSong: "https://example.com/theme-song.mp3",
   themeSongTitle: "Digital Dreams",
