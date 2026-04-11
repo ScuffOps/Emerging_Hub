@@ -75,17 +75,37 @@ html {
 
 /* Glassmorphism Card */
 .glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
+  background: rgba(23, 23, 24, 0.65);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4);
   border-radius: var(--radius-card);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0; 
+  left: -150%;
+  width: 50%; 
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.08), transparent);
+  transform: skewX(-20deg);
+  transition: all 0.7s ease;
+  pointer-events: none;
+}
+
+.glass-card:hover::before {
+  left: 200%;
 }
 
 .glass-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(6, 109, 247, 0.2);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 20px 40px rgba(6, 109, 247, 0.2);
   border-color: rgba(177, 237, 232, 0.3);
 }
 

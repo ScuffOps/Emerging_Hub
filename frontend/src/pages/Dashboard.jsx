@@ -25,9 +25,9 @@ const Dashboard = () => {
 
   return (
     <div className="flex h-screen bg-[#171718] text-white overflow-hidden font-sans relative">
-      {/* Background Gradient */}
-      <div className="fixed inset-0 bg-gradient-to-br from-[#171718] via-[#263542] to-[#352D39] z-0" />
-      <div className="fixed inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-overlay z-0 pointer-events-none" />
+      {/* Background Image */}
+      <div className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000" style={{ backgroundImage: "url('https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/cj8cuhxa_Discord_BG.png')" }} />
+      <div className="fixed inset-0 z-0 bg-black/20 mix-blend-multiply pointer-events-none" />
 
       {/* Sidebar Nav (Option 2 - Immersive Vertical Sidebar) */}
       <nav className="relative z-50 w-20 lg:w-24 flex flex-col items-center py-10 border-r border-white/5 gap-8 shrink-0 transition-all duration-300" style={{ background: 'rgba(23, 23, 24, 0.4)', backdropFilter: 'blur(20px)' }}>
