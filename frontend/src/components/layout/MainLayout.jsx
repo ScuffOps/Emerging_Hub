@@ -1,0 +1,77 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { 
+  Home, 
+  User, 
+  Image as ImageIcon, 
+  Library, 
+  Lock
+} from 'lucide-react';
+import { characterData } from '../../mock';
+import '../../styles/theme.css';
+
+const MainLayout = ({ children }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
+
+  const isActive = (path) => location.pathname.startsWith(path);
+
+  return (
+    <div className="flex h-screen bg-[#171718] text-white overflow-hidden font-sans relative">
+      {/* Background Image */}
+      <div className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000" style={{ backgroundImage: "url('https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/cj8cuhxa_Discord_BG.png')" }} />
+      <div className="fixed inset-0 z-0 bg-black/20 mix-blend-multiply pointer-events-none" />
+
+      {/* Sidebar Nav */}
+      <nav className="relative z-50 w-20 lg:w-24 flex flex-col items-center py-10 border-r border-white/5 gap-8 shrink-0 transition-all duration-300" style={{ background: 'rgba(23, 23, 24, 0.4)', backdropFilter: 'blur(20px)' }}>
+        <button onClick={() => navigate('/home')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/home') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#B1EDE8]'}`}>
+          <Home className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        </button>
+        <button onClick={() => navigate('/dashboard')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/dashboard') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
+          <User className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        </button>
+        <button onClick={() => navigate('/gallery')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/gallery') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
+          <ImageIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        </button>
+        <button onClick={() => navigate('/brand')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/brand') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
+          <Library className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        </button>
+        <div className="mt-auto">
+          <button onClick={() => navigate('/debut')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/debut') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
+            <Lock className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Scrollable Content */}
+      <main className="relative z-10 flex-1 overflow-y-auto custom-scrollbar">
+        {children}
+      </main>
+
+      {/* Pinned Character Art (Right Side) */}
+      {/* Hidden on small screens, fixed on the right on larger screens */}
+      <aside className={`relative z-20 hidden lg:flex flex-col justify-end w-[35%] xl:w-[40%] h-full pointer-events-none transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-20'}`}>
+        {/* Glow effect behind the character */}
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#066DF7] rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-pulse" />
+        
+        {/* Character Full Body Render */}
+        <img 
+          src={characterData.fullBody} 
+          alt={`${characterData.name} Full Body`}
+          className="w-full h-auto object-contain max-h-[95vh] drop-shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+          style={{ 
+            maskImage: 'linear-gradient(to top, transparent 0%, black 10%, black 100%)',
+            WebkitMaskImage: 'linear-gradient(to top, transparent 0%, black 10%, black 100%)' 
+          }}
+        />
+      </aside>
+    </div>
+  );
+};
+
+export default MainLayout;
