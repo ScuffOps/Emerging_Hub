@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from './components/ui/sonner';
+import MainLayout from './components/layout/MainLayout';
 import Landing from './pages/Landing';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
@@ -16,12 +17,12 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/home" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/dashboard/:section" element={<Dashboard />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/brand" element={<BrandLibrary />} />
-          <Route path="/debut" element={<DebutAssets />} />
+          <Route path="/home" element={<MainLayout><Home /></MainLayout>} />
+          <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
+          <Route path="/dashboard/:section" element={<MainLayout><Dashboard /></MainLayout>} />
+          <Route path="/gallery" element={<MainLayout><Gallery /></MainLayout>} />
+          <Route path="/brand" element={<MainLayout><BrandLibrary /></MainLayout>} />
+          <Route path="/debut" element={<MainLayout><DebutAssets /></MainLayout>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

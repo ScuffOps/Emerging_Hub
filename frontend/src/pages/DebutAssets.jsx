@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Eye, EyeOff } from 'lucide-react';
+import { Lock, Eye, EyeOff } from 'lucide-react';
 import { debutAssets } from '../mock';
 import { Input } from '../components/ui/input';
 import '../styles/theme.css';
 
 const DebutAssets = () => {
-  const navigate = useNavigate();
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,82 +30,61 @@ const DebutAssets = () => {
 
   if (!isUnlocked) {
     return (
-      <div className="min-h-screen relative flex items-center justify-center">
-        {/* Background */}
-        <div className="fixed inset-0 bg-gradient-to-br from-[#171718] via-[#263542] to-[#352D39]" />
-        
-        {/* Animated background */}
-        <div className="fixed inset-0 opacity-20">
-          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#600612] rounded-full mix-blend-multiply filter blur-3xl animate-pulse" />
-          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-[#5C1E48] rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
-        </div>
-
-        {/* Lock screen content */}
-        <div className="relative z-10 w-full max-w-md px-8">
-          <div className={`glass-card p-8 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            {/* Lock icon */}
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 rounded-3xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #600612 0%, #5C1E48 100%)' }}>
-                <Lock className="w-10 h-10 text-white" />
+      <div className="flex items-center justify-center h-full p-8">
+        <div className="relative z-10 w-full max-w-md">
+          <div className={`glass-card p-10 rounded-[35px] transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <div className="flex justify-center mb-8">
+              <div className="w-24 h-24 rounded-[30px] flex items-center justify-center shadow-[0_0_30px_rgba(96,6,18,0.5)] animate-pulse" style={{ background: 'linear-gradient(135deg, #600612 0%, #5C1E48 100%)' }}>
+                <Lock className="w-12 h-12 text-white" />
               </div>
             </div>
 
-            {/* Title */}
-            <h2 className="text-3xl font-bold text-center mb-2" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
+            <h2 className="text-4xl font-bold text-center mb-3" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
               Debut Assets
             </h2>
-            <p className="text-center text-[#7E88B7] mb-6">
+            <p className="text-center text-[#7E88B7] mb-8 font-medium">
               This section contains exclusive and sensitive content
             </p>
 
-            {/* Password form */}
-            <form onSubmit={handleUnlock} className="space-y-4">
+            <form onSubmit={handleUnlock} className="space-y-5">
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pr-12 bg-transparent border-[#600612]/50 text-[#E1DBC2] placeholder:text-[#7E88B7] focus:border-[#600612]"
-                  style={{ borderRadius: '55px', height: '52px', paddingLeft: '20px' }}
+                  className="pr-12 bg-black/40 border-[#600612]/50 text-[#E1DBC2] placeholder:text-[#7E88B7] focus:border-[#ff8095] focus:ring-[#ff8095] shadow-inner transition-colors"
+                  style={{ borderRadius: '55px', height: '60px', paddingLeft: '24px' }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#7E88B7] hover:text-[#E1DBC2] transition-colors"
+                  className="absolute right-5 top-1/2 transform -translate-y-1/2 text-[#7E88B7] hover:text-[#E1DBC2] transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
                 </button>
               </div>
 
               {error && (
-                <p className="text-sm text-red-400 text-center">{error}</p>
+                <p className="text-sm font-semibold text-[#ff8095] text-center">{error}</p>
               )}
 
               <button
                 type="submit"
-                className="w-full py-4 font-semibold text-white transition-all"
+                className="w-full py-4 text-lg font-bold text-white transition-all hover:scale-[1.02]"
                 style={{
                   borderRadius: '55px',
                   background: 'linear-gradient(135deg, #600612 0%, #5C1E48 100%)',
+                  boxShadow: '0 8px 25px rgba(96, 6, 18, 0.4)'
                 }}
               >
-                Unlock
+                Unlock Content
               </button>
             </form>
 
-            {/* Back button */}
-            <button 
-              onClick={() => navigate('/home')}
-              className="w-full mt-4 text-[#7E88B7] hover:text-[#E1DBC2] transition-colors text-sm"
-            >
-              Back to Home
-            </button>
-
-            {/* Hint for demo */}
-            <div className="mt-6 p-4 rounded-2xl" style={{ background: 'rgba(96, 6, 18, 0.1)', border: '1px solid rgba(96, 6, 18, 0.3)' }}>
-              <p className="text-xs text-[#7E88B7] text-center">
-                Demo password: <span className="text-[#E1DBC2] font-mono">veri2024</span>
+            <div className="mt-8 p-5 rounded-[25px] border border-[#600612]/30 bg-[#600612]/10 shadow-inner">
+              <p className="text-sm text-[#7E88B7] text-center">
+                Demo password: <span className="text-[#E1DBC2] font-mono font-bold tracking-widest">veri2024</span>
               </p>
             </div>
           </div>
@@ -117,98 +94,81 @@ const DebutAssets = () => {
   }
 
   return (
-    <div className="min-h-screen relative">
-      {/* Background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-[#171718] via-[#263542] to-[#352D39]" />
-      
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 px-8 py-6" style={{ backdropFilter: 'blur(20px)', background: 'rgba(23, 23, 24, 0.6)', borderBottom: '1px solid rgba(177, 237, 232, 0.1)' }}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <button onClick={() => navigate('/home')} className="flex items-center gap-2 text-[#B1EDE8] hover:text-white transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Back to Home</span>
-          </button>
-          <h1 className="text-2xl font-bold gradient-text flex items-center gap-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-            <Lock className="w-6 h-6" />
+    <div className="p-8 lg:p-12 pb-32">
+      <div className="flex items-center justify-between mb-10">
+        <div className={`transition-all duration-700 delay-100 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <h1 className="text-5xl lg:text-6xl font-bold mb-2 gradient-text flex items-center gap-4" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+            <Lock className="w-10 h-10 text-[#5C1E48]" />
             Debut Assets
           </h1>
-          <button
-            onClick={() => setIsUnlocked(false)}
-            className="text-[#7E88B7] hover:text-[#E1DBC2] transition-colors text-sm"
-          >
-            Lock
-          </button>
+          <p className="text-xl text-[#B1EDE8] tracking-wide">Exclusive unreleased content</p>
         </div>
-      </header>
+        <button
+          onClick={() => setIsUnlocked(false)}
+          className="flex items-center gap-2 px-6 py-3 font-semibold text-[#7E88B7] border border-white/10 hover:border-white/30 rounded-[55px] bg-black/20 hover:bg-white/10 transition-all shadow-inner"
+        >
+          <Lock className="w-4 h-4" />
+          Lock Vault
+        </button>
+      </div>
 
-      {/* Main content */}
-      <main className="relative z-10 pt-32 pb-16 px-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Warning banner */}
-          <div className="glass-card p-6 mb-8 border-[#600612]/50 animate-fade-in-up">
-            <div className="flex items-start gap-4">
-              <div className="flex items-center justify-center w-12 h-12 rounded-2xl" style={{ background: 'linear-gradient(135deg, #600612 0%, #5C1E48 100%)' }}>
-                <Lock className="w-6 h-6 text-white" />
+      <div className={`glass-card p-8 mb-10 rounded-[35px] border-[#600612]/50 bg-gradient-to-br from-black/40 to-[#600612]/10 shadow-inner transition-all duration-700 delay-200 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center justify-center w-16 h-16 rounded-3xl shrink-0" style={{ background: 'linear-gradient(135deg, #600612 0%, #5C1E48 100%)', boxShadow: '0 0 20px rgba(96,6,18,0.4)' }}>
+            <Lock className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h3 className="text-2xl font-bold text-[#E1DBC2] mb-2">Restricted Access</h3>
+            <p className="text-base text-[#7E88B7] leading-relaxed">
+              This section contains unreleased and highly sensitive assets. Do not share or distribute.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl">
+        {debutAssets.map((asset, index) => (
+          <div
+            key={asset.id}
+            className={`glass-card rounded-[35px] overflow-hidden group transition-all duration-500 delay-[${index * 100}ms] ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+          >
+            <div className="relative aspect-video overflow-hidden">
+              <img
+                src={asset.thumbnail}
+                alt={asset.title}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute top-6 right-6">
+                <span className="chip shadow-lg bg-[#600612]/80 text-white border-[#ff8095]/50 backdrop-blur-md flex items-center gap-2 px-4 py-2 font-bold tracking-wide">
+                  <Lock className="w-4 h-4" />
+                  CONFIDENTIAL
+                </span>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-[#E1DBC2] mb-1">Exclusive Content</h3>
-                <p className="text-sm text-[#7E88B7]">
-                  This section contains unreleased and sensitive assets. Please handle with care.
-                </p>
+            </div>
+
+            <div className="p-8">
+              <h3 className="text-2xl font-bold mb-3 text-[#E1DBC2]">
+                {asset.title}
+              </h3>
+              <p className="text-base text-[#7E88B7] mb-6 leading-relaxed">
+                {asset.description}
+              </p>
+              <div className="flex items-center justify-between bg-black/20 p-4 rounded-[20px] border border-white/5 shadow-inner">
+                <span className="chip bg-white/10 text-white border-white/20 font-medium px-4 py-1.5">{asset.category}</span>
+                <span className="text-sm font-semibold text-[#7E88B7]">{asset.uploadDate}</span>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-6">
+                {asset.tags.map((tag, idx) => (
+                  <span key={idx} className="text-[10px] px-3 py-1.5 rounded-full font-medium" style={{ background: 'rgba(96, 6, 18, 0.2)', color: '#ff8095', border: '1px solid rgba(96, 6, 18, 0.4)' }}>
+                    #{tag}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
-
-          {/* Assets grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {debutAssets.map((asset, index) => (
-              <div
-                key={asset.id}
-                className="glass-card overflow-hidden group transition-all duration-500 animate-fade-in-up"
-                style={{ transitionDelay: `${index * 100}ms` }}
-              >
-                {/* Thumbnail */}
-                <div className="relative aspect-video overflow-hidden">
-                  <img
-                    src={asset.thumbnail}
-                    alt={asset.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  {/* Exclusive badge */}
-                  <div className="absolute top-4 right-4">
-                    <span className="chip chip-danger flex items-center gap-1">
-                      <Lock className="w-3 h-3" />
-                      Exclusive
-                    </span>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-5">
-                  <h3 className="text-lg font-bold mb-2 text-[#E1DBC2]">
-                    {asset.title}
-                  </h3>
-                  <p className="text-sm text-[#7E88B7] mb-3">
-                    {asset.description}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="chip chip-primary text-xs">{asset.category}</span>
-                    <span className="text-xs text-[#7E88B7]">{asset.uploadDate}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {asset.tags.map((tag, idx) => (
-                      <span key={idx} className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(96, 6, 18, 0.15)', color: '#7E88B7' }}>
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </main>
+        ))}
+      </div>
     </div>
   );
 };
