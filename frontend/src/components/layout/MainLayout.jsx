@@ -27,6 +27,18 @@ const MainLayout = ({ children }) => {
       <div className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000" style={{ backgroundImage: "url('https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/cj8cuhxa_Discord_BG.png')" }} />
       <div className="fixed inset-0 z-0 bg-black/20 mix-blend-multiply pointer-events-none" />
 
+      {/* Subtle Particle Effect */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-25 mix-blend-screen">
+        <video
+          src="https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/vqco9jvi_DustFalling1.webm"
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover"
+        />
+      </div>
+
       {/* Sidebar Nav */}
       <nav className="relative z-50 w-20 lg:w-24 flex flex-col items-center py-10 border-r border-white/5 gap-8 shrink-0 transition-all duration-300" style={{ background: 'rgba(23, 23, 24, 0.4)', backdropFilter: 'blur(20px)' }}>
         <button onClick={() => navigate('/home')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/home') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#B1EDE8]'}`}>

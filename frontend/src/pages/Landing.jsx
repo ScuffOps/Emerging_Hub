@@ -94,6 +94,18 @@ const Landing = () => {
         }} 
       />
 
+      {/* Particle Effect Overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-80 mix-blend-screen" style={{ zIndex: 6 }}>
+        <video
+          src="https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/vqco9jvi_DustFalling1.webm"
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover"
+        />
+      </div>
+
       {/* --- UI CONTENT OVERLAY --- */}
       <div className="fixed inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ zIndex: 10 }}>
         
