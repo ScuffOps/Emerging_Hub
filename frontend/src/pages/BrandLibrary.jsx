@@ -1,14 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Package, FileText, Plus } from 'lucide-react';
-import { brandAssets, licenses } from '../mock';
+import { fetchBrandAssets, fetchLicenses } from '../api';
 import '../styles/theme.css';
 
 const BrandLibrary = () => {
   const [activeTab, setActiveTab] = useState('assets');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [brandAssets, setBrandAssets] = useState([]);
+  const [licenses, setLicenses] = useState([]);
 
   useEffect(() => {
-    setIsLoaded(true);
+    const loadData = async () => {
+      try {
+        const [assetsData, licensesData] = await Promise.all([
+          fetchBrandAssets(),
+          fetchLicenses()
+        ]);
+        setBrandAssets(assetsData);
+        setLicenses(licensesData);
+        setIsLoaded(true);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadData();
   }, []);
 
   return (

@@ -7,19 +7,27 @@ import {
   Library, 
   Lock
 } from 'lucide-react';
-import { characterData } from '../../mock';
+import { useCharacter } from '../../context/CharacterContext';
 import '../../styles/theme.css';
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoaded, setIsLoaded] = useState(false);
+  const { character, loading, error } = useCharacter();
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
 
   const isActive = (path) => location.pathname.startsWith(path);
+
+  if (loading) {
+    return <div className="flex h-screen bg-[#171718] items-center justify-center text-white">Loading...</div>;
+  }
+  if (error) {
+    return <div className="flex h-screen bg-[#171718] items-center justify-center text-red-500">Error: {error}</div>;
+  }
 
   return (
     <div className="flex h-screen bg-[#171718] text-white overflow-hidden font-sans relative">
@@ -72,15 +80,17 @@ const MainLayout = ({ children }) => {
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#066DF7] rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-pulse" />
         
         {/* Character Full Body Render */}
-        <img 
-          src={characterData.fullBody} 
-          alt={`${characterData.name} Full Body`}
-          className="w-full h-auto object-contain max-h-[95vh] drop-shadow-[0_0_30px_rgba(0,0,0,0.8)]"
-          style={{ 
-            maskImage: 'linear-gradient(to top, transparent 0%, black 10%, black 100%)',
-            WebkitMaskImage: 'linear-gradient(to top, transparent 0%, black 10%, black 100%)' 
-          }}
-        />
+        {character?.fullBody && (
+          <img 
+            src={character.fullBody} 
+            alt={`${character.name} Full Body`}
+            className="w-full h-auto object-contain max-h-[95vh] drop-shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+            style={{ 
+              maskImage: 'linear-gradient(to top, transparent 0%, black 10%, black 100%)',
+              WebkitMaskImage: 'linear-gradient(to top, transparent 0%, black 10%, black 100%)' 
+            }}
+          />
+        )}
       </aside>
     </div>
   );

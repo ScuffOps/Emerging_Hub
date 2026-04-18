@@ -1,23 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Music, Heart, X, Sparkles, Quote } from 'lucide-react';
-import { characterData } from '../mock';
+import { useCharacter } from '../context/CharacterContext';
 import '../styles/theme.css';
 
 const Dashboard = () => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const { character, loading } = useCharacter();
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
+
+  if (loading || !character) return null;
 
   return (
     <div className="p-8 lg:p-12 pb-32">
       {/* Header Area */}
       <div className={`mb-10 transition-all duration-700 delay-100 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <h1 className="text-5xl lg:text-6xl font-bold mb-2 gradient-text" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-          {characterData.name}
+          {character.name}
         </h1>
-        <p className="text-xl text-[#B1EDE8] tracking-wide">{characterData.tagline}</p>
+        <p className="text-xl text-[#B1EDE8] tracking-wide">{character.tagline}</p>
       </div>
 
       {/* Bento Grid */}
@@ -31,8 +34,8 @@ const Dashboard = () => {
             </div>
             <div className="flex flex-col justify-center h-full">
               <h3 className="text-2xl font-bold mb-3" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>The Origin</h3>
-              <p className="text-[#7E88B7] leading-relaxed mb-4 text-sm xl:text-base">{characterData.lore.origin}</p>
-              <p className="text-[#7E88B7] leading-relaxed text-sm xl:text-base">{characterData.lore.backstory}</p>
+              <p className="text-[#7E88B7] leading-relaxed mb-4 text-sm xl:text-base">{character.lore.origin}</p>
+              <p className="text-[#7E88B7] leading-relaxed text-sm xl:text-base">{character.lore.backstory}</p>
             </div>
           </div>
         </div>
@@ -41,7 +44,7 @@ const Dashboard = () => {
         <div className={`md:col-span-2 md:row-span-1 glass-card p-8 rounded-[35px] h-full flex flex-col justify-center transition-all duration-700 delay-400 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <h3 className="text-xl font-bold mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>Color Palette</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {characterData.colorPalette.slice(0, 4).map((color, index) => (
+            {character.colorPalette?.slice(0, 4).map((color, index) => (
               <div key={index} className="flex flex-col items-center gap-2">
                 <div className="w-10 h-10 rounded-full border border-white/20 shadow-inner" style={{ background: color.hex }} />
                 <span className="text-[10px] font-medium text-[#7E88B7] text-center">{color.name}</span>
@@ -56,7 +59,7 @@ const Dashboard = () => {
             <Music className="w-5 h-5 text-white" />
           </div>
           <h3 className="font-bold text-base mb-1" style={{ color: '#E1DBC2' }}>Theme Song</h3>
-          <p className="text-sm text-[#B1EDE8]">{characterData.themeSongTitle}</p>
+          <p className="text-sm text-[#B1EDE8]">{character.themeSongTitle}</p>
         </div>
 
         {/* Likes & Dislikes Card - 1x2 */}
@@ -66,7 +69,7 @@ const Dashboard = () => {
               <Heart className="w-4 h-4 text-[#B1EDE8]" /> Likes
             </h3>
             <div className="flex flex-wrap gap-2">
-              {characterData.likes.slice(0, 3).map((like, index) => (
+              {character.likes?.slice(0, 3).map((like, index) => (
                 <span key={index} className="px-2 py-1 text-[10px] rounded-full bg-[#B1EDE8]/10 text-[#B1EDE8] border border-[#B1EDE8]/20">{like}</span>
               ))}
             </div>
@@ -76,7 +79,7 @@ const Dashboard = () => {
               <X className="w-4 h-4 text-[#600612]" /> Dislikes
             </h3>
             <div className="flex flex-wrap gap-2">
-              {characterData.dislikes.slice(0, 3).map((dislike, index) => (
+              {character.dislikes?.slice(0, 3).map((dislike, index) => (
                 <span key={index} className="px-2 py-1 text-[10px] rounded-full bg-[#600612]/20 text-[#ff8095] border border-[#600612]/30">{dislike}</span>
               ))}
             </div>
@@ -90,7 +93,7 @@ const Dashboard = () => {
             Core Abilities
           </h3>
           <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-            {characterData.skills.slice(0, 4).map((skill, index) => (
+            {character.skills?.slice(0, 4).map((skill, index) => (
               <div key={index}>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-[#E1DBC2] font-medium">{skill.name}</span>
@@ -111,7 +114,7 @@ const Dashboard = () => {
         <div className={`md:col-span-1 md:row-span-1 glass-card p-6 rounded-[35px] h-full flex flex-col justify-center transition-all duration-700 delay-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <h3 className="text-base font-bold mb-3" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>Motifs</h3>
           <div className="flex flex-wrap gap-2">
-            {characterData.designMotifs.slice(0, 3).map((motif, index) => (
+            {character.designMotifs?.slice(0, 3).map((motif, index) => (
               <span key={index} className="px-3 py-1.5 rounded-full text-[10px] font-medium bg-white/5 border border-white/10">
                 {motif}
               </span>

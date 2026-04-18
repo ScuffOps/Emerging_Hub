@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Eye, EyeOff } from 'lucide-react';
-import { debutAssets } from '../mock';
+import { verifyDebutPassword, fetchDebutAssets } from '../api';
 import { Input } from '../components/ui/input';
 import '../styles/theme.css';
 
@@ -10,20 +10,25 @@ const DebutAssets = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
-
-  // Mock password - in production, this would be stored securely in backend
-  const DEBUT_PASSWORD = 'veri2024';
+  const [debutAssets, setDebutAssets] = useState([]);
+  const [token, setToken] = useState(null);
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
 
-  const handleUnlock = (e) => {
+  const handleUnlock = async (e) => {
     e.preventDefault();
-    if (password === DEBUT_PASSWORD) {
+    try {
+      const authData = await verifyDebutPassword(password);
+      setToken(authData.token);
+      
+      const assetsData = await fetchDebutAssets(authData.token);
+      setDebutAssets(assetsData);
+      
       setIsUnlocked(true);
       setError('');
-    } else {
+    } catch (err) {
       setError('Incorrect password. Please try again.');
     }
   };

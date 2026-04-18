@@ -8,25 +8,28 @@ import Dashboard from './pages/Dashboard';
 import Gallery from './pages/Gallery';
 import BrandLibrary from './pages/BrandLibrary';
 import DebutAssets from './pages/DebutAssets';
+import { CharacterProvider } from './context/CharacterContext';
 import './App.css';
 import './styles/theme.css';
 
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/home" element={<MainLayout><Home /></MainLayout>} />
-          <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
-          <Route path="/dashboard/:section" element={<MainLayout><Dashboard /></MainLayout>} />
-          <Route path="/gallery" element={<MainLayout><Gallery /></MainLayout>} />
-          <Route path="/brand" element={<MainLayout><BrandLibrary /></MainLayout>} />
-          <Route path="/debut" element={<MainLayout><DebutAssets /></MainLayout>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-      <Toaster />
+      <CharacterProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/home" element={<MainLayout><Home /></MainLayout>} />
+            <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
+            <Route path="/dashboard/:section" element={<MainLayout><Dashboard /></MainLayout>} />
+            <Route path="/gallery" element={<MainLayout><Gallery /></MainLayout>} />
+            <Route path="/brand" element={<MainLayout><BrandLibrary /></MainLayout>} />
+            <Route path="/debut" element={<MainLayout><DebutAssets /></MainLayout>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+        <Toaster />
+      </CharacterProvider>
     </div>
   );
 }

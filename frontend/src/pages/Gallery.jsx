@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Grid3x3, Filter, Search, Plus, FolderOpen } from 'lucide-react';
-import { galleryItems } from '../mock';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
+import { fetchGallery } from '../api';
+import UploadModal from '../components/UploadModal';
 import '../styles/theme.css';
 
 const Gallery = () => {
@@ -11,9 +12,20 @@ const Gallery = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [galleryItems, setGalleryItems] = useState([]);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   useEffect(() => {
-    setIsLoaded(true);
+    const loadData = async () => {
+      try {
+        const data = await fetchGallery();
+        setGalleryItems(data);
+        setIsLoaded(true);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadData();
   }, []);
 
   const categories = ['All', 'Character Design', 'Live2D', 'Emotes', 'Graphics', 'Alt Outfits', 'Profile Art', 'Accessories', 'Companions'];
@@ -77,6 +89,7 @@ const Gallery = () => {
 
           {/* Add New Button (placeholder for upload feature) */}
           <button
+            onClick={() => setIsUploadOpen(true)}
             className="flex items-center gap-2 px-6 py-3 font-semibold text-white transition-all shadow-[0_0_15px_rgba(6,109,247,0.3)] hover:shadow-[0_0_25px_rgba(6,109,247,0.5)]"
             style={{
               borderRadius: '55px',
@@ -255,6 +268,12 @@ const Gallery = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <UploadModal 
+        isOpen={isUploadOpen} 
+        onClose={() => setIsUploadOpen(false)}
+        onUploadSuccess={(newItem) => setGalleryItems([newItem, ...galleryItems])}
+      />
     </div>
   );
 };
