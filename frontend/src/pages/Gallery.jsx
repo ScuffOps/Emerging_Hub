@@ -183,81 +183,85 @@ const Gallery = () => {
 
       {/* Detail Modal */}
       <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
-        <DialogContent className="max-w-4xl bg-black/80 backdrop-blur-3xl border border-white/10 text-[#E1DBC2]" style={{ borderRadius: '35px' }}>
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar bg-black/80 backdrop-blur-3xl border border-white/10 text-[#E1DBC2] p-6 lg:p-8" style={{ borderRadius: '35px' }}>
           {selectedItem && (
             <>
-              <DialogHeader>
-                <DialogTitle className="text-3xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
+              <DialogHeader className="mb-4 shrink-0">
+                <DialogTitle className="text-2xl md:text-3xl font-bold break-words" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
                   {selectedItem.title}
                 </DialogTitle>
               </DialogHeader>
-              <div className="space-y-6 mt-4">
+              
+              <div className="flex flex-col gap-6">
                 {/* Image */}
-                <div className="relative aspect-video rounded-[25px] overflow-hidden shadow-2xl">
+                <div className="relative w-full rounded-[25px] overflow-hidden shadow-2xl bg-black/50 flex items-center justify-center min-h-[200px] max-h-[50vh]">
                   <img
                     src={selectedItem.thumbnail}
                     alt={selectedItem.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain max-h-[50vh]"
                   />
                 </div>
 
                 {/* Details Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 p-6 rounded-[25px] bg-white/5 border border-white/10">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-6 p-4 md:p-6 rounded-[25px] bg-white/5 border border-white/10">
                   <div>
-                    <p className="text-sm text-[#7E88B7] mb-1">Artist</p>
-                    <p className="font-bold text-white">{selectedItem.artistName}</p>
+                    <p className="text-xs md:text-sm text-[#7E88B7] mb-1">Artist</p>
+                    <p className="font-bold text-white text-sm md:text-base break-words">{selectedItem.artistName}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-[#7E88B7] mb-1">Platform</p>
-                    <p className="font-bold text-white">{selectedItem.platform}</p>
+                    <p className="text-xs md:text-sm text-[#7E88B7] mb-1">Platform</p>
+                    <p className="font-bold text-white text-sm md:text-base break-words">{selectedItem.platform}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-[#7E88B7] mb-1">Type</p>
-                    <span className="chip bg-white/10 text-white border-white/20">{selectedItem.type}</span>
+                    <p className="text-xs md:text-sm text-[#7E88B7] mb-1">Type</p>
+                    <span className="chip bg-white/10 text-white border-white/20 text-xs">{selectedItem.type}</span>
                   </div>
                   <div>
-                    <p className="text-sm text-[#7E88B7] mb-1">Status</p>
-                    <span className={`chip ${getStatusColor(selectedItem.status)}`}>{selectedItem.status}</span>
+                    <p className="text-xs md:text-sm text-[#7E88B7] mb-1">Status</p>
+                    <span className={`chip text-xs ${getStatusColor(selectedItem.status)}`}>{selectedItem.status}</span>
                   </div>
                   <div>
-                    <p className="text-sm text-[#7E88B7] mb-1">Payment</p>
-                    <p className="font-bold text-[#F5DBAE]">${selectedItem.payment}</p>
+                    <p className="text-xs md:text-sm text-[#7E88B7] mb-1">Payment</p>
+                    <p className="font-bold text-[#F5DBAE] text-sm md:text-base">${selectedItem.payment}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-[#7E88B7] mb-1">Usage Rights</p>
-                    <p className="font-bold text-white">{selectedItem.usageRights}</p>
+                    <p className="text-xs md:text-sm text-[#7E88B7] mb-1">Usage Rights</p>
+                    <p className="font-bold text-white text-sm md:text-base break-words">{selectedItem.usageRights}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Description */}
-                  <div className="p-6 rounded-[25px] bg-white/5 border border-white/10">
-                    <p className="text-sm text-[#7E88B7] mb-3">Description</p>
-                    <p className="text-white leading-relaxed">{selectedItem.description}</p>
+                  <div className="p-4 md:p-6 rounded-[25px] bg-white/5 border border-white/10">
+                    <p className="text-xs md:text-sm text-[#7E88B7] mb-3">Description</p>
+                    <p className="text-white text-sm md:text-base leading-relaxed">{selectedItem.description}</p>
                   </div>
 
                   {/* Artist Handles & Tags */}
                   <div className="flex flex-col gap-6">
-                    <div className="p-6 rounded-[25px] bg-white/5 border border-white/10">
-                      <p className="text-sm text-[#7E88B7] mb-3">Artist Contacts</p>
+                    <div className="p-4 md:p-6 rounded-[25px] bg-white/5 border border-white/10">
+                      <p className="text-xs md:text-sm text-[#7E88B7] mb-3">Artist Contacts</p>
                       <div className="flex flex-wrap gap-2">
-                        {Object.entries(selectedItem.artistHandles).map(([platform, handle]) => (
-                          <span key={platform} className="text-sm px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-white">
+                        {Object.entries(selectedItem.artistHandles || {}).map(([platform, handle]) => (
+                          <span key={platform} className="text-xs md:text-sm px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-white break-words">
                             {platform}: {handle}
                           </span>
                         ))}
+                        {Object.keys(selectedItem.artistHandles || {}).length === 0 && (
+                          <span className="text-sm text-white/50">No contacts provided</span>
+                        )}
                       </div>
                     </div>
                     
-                    <div className="p-6 rounded-[25px] bg-white/5 border border-white/10">
-                      <p className="text-sm text-[#7E88B7] mb-3">Folder & Tags</p>
-                      <p className="text-white flex items-center gap-2 mb-4 font-medium">
-                        <FolderOpen className="w-4 h-4 text-[#066DF7]" />
+                    <div className="p-4 md:p-6 rounded-[25px] bg-white/5 border border-white/10">
+                      <p className="text-xs md:text-sm text-[#7E88B7] mb-3">Folder & Tags</p>
+                      <p className="text-white text-sm md:text-base flex items-center gap-2 mb-4 font-medium break-words">
+                        <FolderOpen className="w-4 h-4 text-[#066DF7] shrink-0" />
                         {selectedItem.folder}
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {selectedItem.tags.map((tag, idx) => (
-                          <span key={idx} className="chip bg-black/30 border border-white/10 text-[#7E88B7]">#{tag}</span>
+                        {selectedItem.tags?.map((tag, idx) => (
+                          <span key={idx} className="chip text-xs bg-black/30 border border-white/10 text-[#7E88B7] break-words">#{tag}</span>
                         ))}
                       </div>
                     </div>
