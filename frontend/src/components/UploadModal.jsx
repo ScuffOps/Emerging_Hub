@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Upload, X, Loader2 } from 'lucide-react';
@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
-const UploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
+const UploadModal = ({ isOpen, onClose, onUploadSuccess, editItem = null }) => {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -14,7 +14,7 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
 
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     title: '',
     artistName: '',
     platform: '',
@@ -24,8 +24,29 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
     usageRights: 'Personal',
     category: 'Character Design',
     folder: 'Main',
-    description: ''
-  });
+    description: '',
+    tags: ''
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (editItem) {
+        setFormData({
+          ...editItem,
+          payment: editItem.payment.toString(),
+          tags: editItem.tags ? editItem.tags.join(', ') : ''
+        });
+        setPreview(editItem.thumbnail);
+        setFile(null); // Clear file since we use existing thumbnail
+      } else {
+        setFormData(initialFormState);
+        setPreview(null);
+        setFile(null);
+      }
+    }
+  }, [isOpen, editItem]);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -101,7 +122,7 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) {
+    if (!file && !editItem) {
       toast.error('Please select a file to upload');
       return;
     }
@@ -114,30 +135,39 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
     setUploadProgress(0);
 
     try {
-      // 1. Upload the image file first via chunks
-      const fileUrl = await uploadFileChunks(file);
+      let fileUrl = editItem ? editItem.thumbnail : '';
+      
+      // Upload new file only if user selected one
+      if (file) {
+        fileUrl = await uploadFileChunks(file);
+      }
 
-      // 2. Save metadata to DB
+      // Convert tags from comma separated string to array
+      const parsedTags = (typeof formData.tags === 'string' ? formData.tags : '').split(',').map(t => t.trim()).filter(Boolean);
+
       const itemData = {
         ...formData,
         thumbnail: fileUrl,
         payment: parseFloat(formData.payment || 0),
-        uploadDate: new Date().toISOString().split('T')[0],
-        artistHandles: {},
-        tags: []
+        uploadDate: editItem ? editItem.uploadDate : new Date().toISOString().split('T')[0],
+        artistHandles: editItem ? editItem.artistHandles : {},
+        tags: parsedTags
       };
 
-      const res = await fetch(`${API_URL}/api/gallery`, {
-        method: 'POST',
+      const url = editItem ? `${API_URL}/api/gallery/${editItem.id}` : `${API_URL}/api/gallery`;
+      const method = editItem ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(itemData)
       });
 
-      if (!res.ok) throw new Error('Failed to save gallery item');
+      if (!res.ok) throw new Error(`Failed to ${editItem ? 'update' : 'save'} gallery item`);
       
       const savedItem = await res.json();
-      toast.success('Artwork uploaded successfully!');
-      onUploadSuccess(savedItem);
+      toast.success(`Artwork ${editItem ? 'updated' : 'uploaded'} successfully!`);
+      onUploadSuccess(savedItem, !!editItem);
       onClose();
     } catch (error) {
       console.error(error);
@@ -153,7 +183,7 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
       <DialogContent className="max-w-3xl bg-black/90 backdrop-blur-3xl border border-white/10 text-[#E1DBC2]" style={{ borderRadius: '35px' }}>
         <DialogHeader>
           <DialogTitle className="text-3xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
-            Upload New Artwork
+            {editItem ? 'Edit Gallery Item' : 'Upload New Artwork'}
           </DialogTitle>
         </DialogHeader>
 
@@ -301,6 +331,27 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-[#7E88B7] mb-1">Folder</label>
+                <Input 
+                  value={formData.folder}
+                  onChange={(e) => setFormData({...formData, folder: e.target.value})}
+                  className="bg-white/5 border-white/10 text-white rounded-xl focus:border-[#066DF7]"
+                  placeholder="e.g. Main/Character References"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[#7E88B7] mb-1">Tags (Comma separated)</label>
+                <Input 
+                  value={formData.tags}
+                  onChange={(e) => setFormData({...formData, tags: e.target.value})}
+                  className="bg-white/5 border-white/10 text-white rounded-xl focus:border-[#066DF7]"
+                  placeholder="e.g. reference, digital, wip"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm text-[#7E88B7] mb-1">Description</label>
               <textarea 
@@ -322,9 +373,9 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
               }}
             >
               {isUploading ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Uploading...</>
+                <><Loader2 className="w-5 h-5 animate-spin" /> {editItem && !file ? 'Saving...' : 'Uploading...'}</>
               ) : (
-                'Save to Gallery'
+                editItem ? 'Save Changes' : 'Save to Gallery'
               )}
             </button>
           </div>

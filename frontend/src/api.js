@@ -9,10 +9,20 @@ export const fetchCharacter = async () => {
 export const fetchGallery = async (category = 'All', folder = '') => {
   let url = `${API_URL}/api/gallery?`;
   if (category && category !== 'All') url += `category=${encodeURIComponent(category)}&`;
-  if (folder) url += `folder=${encodeURIComponent(folder)}&`;
+  if (folder && folder !== 'All') url += `folder=${encodeURIComponent(folder)}&`;
   
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch gallery');
+  return res.json();
+};
+
+export const updateGalleryItem = async (id, data) => {
+  const res = await fetch(`${API_URL}/api/gallery/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to update gallery item');
   return res.json();
 };
 

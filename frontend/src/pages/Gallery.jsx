@@ -4,12 +4,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { Input } from '../components/ui/input';
 import { fetchGallery } from '../api';
 import UploadModal from '../components/UploadModal';
+import HorizontalFolderCarousel from '../components/HorizontalFolderCarousel';
 import '../styles/theme.css';
 
 const Gallery = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [editItem, setEditItem] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
   const [isLoaded, setIsLoaded] = useState(false);
   const [galleryItems, setGalleryItems] = useState([]);
@@ -30,12 +32,30 @@ const Gallery = () => {
 
   const categories = ['All', 'Character Design', 'Live2D', 'Emotes', 'Graphics', 'Alt Outfits', 'Profile Art', 'Accessories', 'Companions'];
 
+  // Dynamic Folders Extraction
+  const foldersMap = galleryItems.reduce((acc, item) => {
+    const f = item.folder || 'Uncategorized';
+    if (!acc[f]) {
+      acc[f] = { name: f, count: 0, image: item.thumbnail };
+    }
+    acc[f].count += 1;
+    return acc;
+  }, {});
+
+  const foldersList = [
+    { name: 'All', count: galleryItems.length, image: galleryItems[0]?.thumbnail || '' },
+    ...Object.values(foldersMap)
+  ];
+
+  const [selectedFolder, setSelectedFolder] = useState('All');
+
   const filteredItems = galleryItems.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          item.artistName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesFolder = selectedFolder === 'All' || item.folder === selectedFolder;
+    return matchesSearch && matchesCategory && matchesFolder;
   });
 
   const getStatusColor = (status) => {
@@ -80,16 +100,12 @@ const Gallery = () => {
             <Grid3x3 className="w-5 h-5" />
           </button>
 
-          {/* Folder Button (placeholder) */}
-          <button
-            className="p-3 rounded-2xl border border-white/10 bg-black/20 text-[#066DF7] hover:bg-white/10 transition-all shadow-inner"
-          >
-            <FolderOpen className="w-5 h-5" />
-          </button>
-
           {/* Add New Button (placeholder for upload feature) */}
           <button
-            onClick={() => setIsUploadOpen(true)}
+            onClick={() => {
+              setEditItem(null);
+              setIsUploadOpen(true);
+            }}
             className="flex items-center gap-2 px-6 py-3 font-semibold text-white transition-all shadow-[0_0_15px_rgba(6,109,247,0.3)] hover:shadow-[0_0_25px_rgba(6,109,247,0.5)]"
             style={{
               borderRadius: '55px',
@@ -117,6 +133,15 @@ const Gallery = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Horizontal Folders Carousel */}
+      <div className={`transition-all duration-700 delay-300 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        <HorizontalFolderCarousel 
+          folders={foldersList}
+          selectedFolder={selectedFolder}
+          onSelectFolder={setSelectedFolder}
+        />
       </div>
 
       {/* Gallery Grid */}
@@ -186,10 +211,22 @@ const Gallery = () => {
         <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar bg-black/80 backdrop-blur-3xl border border-white/10 text-[#E1DBC2] p-6 lg:p-8" style={{ borderRadius: '35px' }}>
           {selectedItem && (
             <>
-              <DialogHeader className="mb-4 shrink-0">
+              <DialogHeader className="mb-4 shrink-0 flex flex-row items-center justify-between">
                 <DialogTitle className="text-2xl md:text-3xl font-bold break-words" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
                   {selectedItem.title}
                 </DialogTitle>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setEditItem(selectedItem);
+                      setIsUploadOpen(true);
+                      setSelectedItem(null);
+                    }}
+                    className="px-4 py-2 rounded-full text-sm font-bold bg-[#066DF7] hover:bg-[#3086AE] text-white transition-all ml-4 shrink-0"
+                  >
+                    Edit Entry
+                  </button>
+                </div>
               </DialogHeader>
               
               <div className="flex flex-col gap-6">
@@ -276,7 +313,14 @@ const Gallery = () => {
       <UploadModal 
         isOpen={isUploadOpen} 
         onClose={() => setIsUploadOpen(false)}
-        onUploadSuccess={(newItem) => setGalleryItems([newItem, ...galleryItems])}
+        editItem={editItem}
+        onUploadSuccess={(newItem, isEdit) => {
+          if (isEdit) {
+            setGalleryItems(prev => prev.map(i => i.id === newItem.id ? newItem : i));
+          } else {
+            setGalleryItems([newItem, ...galleryItems]);
+          }
+        }}
       />
     </div>
   );
