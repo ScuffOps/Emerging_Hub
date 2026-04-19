@@ -26,6 +26,14 @@ export const updateGalleryItem = async (id, data) => {
   return res.json();
 };
 
+export const deleteGalleryItem = async (id) => {
+  const res = await fetch(`${API_URL}/api/gallery/${id}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Failed to delete gallery item');
+  return res.json();
+};
+
 export const fetchBrandAssets = async () => {
   const res = await fetch(`${API_URL}/api/brand`);
   if (!res.ok) throw new Error('Failed to fetch brand assets');

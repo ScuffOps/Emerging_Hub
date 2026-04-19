@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Grid3x3, Filter, Search, Plus, FolderOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
-import { fetchGallery } from '../api';
+import { fetchGallery, deleteGalleryItem } from '../api';
 import UploadModal from '../components/UploadModal';
 import HorizontalFolderCarousel from '../components/HorizontalFolderCarousel';
+import { toast } from 'sonner';
 import '../styles/theme.css';
 
 const Gallery = () => {
@@ -64,6 +65,20 @@ const Gallery = () => {
       case 'In Progress': return 'chip-warning';
       case 'Requested': return 'chip-primary';
       default: return 'chip-primary';
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm("Are you sure you want to delete this artwork? This action cannot be undone.")) {
+      try {
+        await deleteGalleryItem(selectedItem.id);
+        setGalleryItems(galleryItems.filter(item => item.id !== selectedItem.id));
+        setSelectedItem(null);
+        toast.success("Artwork deleted successfully");
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to delete artwork");
+      }
     }
   };
 
@@ -225,6 +240,12 @@ const Gallery = () => {
                     className="px-4 py-2 rounded-full text-sm font-bold bg-[#066DF7] hover:bg-[#3086AE] text-white transition-all ml-4 shrink-0"
                   >
                     Edit Entry
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="px-4 py-2 rounded-full text-sm font-bold bg-red-500/20 hover:bg-red-500 text-red-100 hover:text-white border border-red-500/50 transition-all shrink-0"
+                  >
+                    Delete
                   </button>
                 </div>
               </DialogHeader>
