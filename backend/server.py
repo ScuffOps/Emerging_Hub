@@ -46,9 +46,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # --- Object Storage Integration ---
-STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
+STORAGE_URL = os.environ.get('STORAGE_URL', "https://integrations.emergentagent.com/objstore/api/v1/storage")
 EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
-APP_NAME = "veri-vtuber-portfolio"
+APP_NAME = os.environ.get('APP_NAME', "veri-vtuber-portfolio")
 storage_key = None
 
 def init_storage():
@@ -144,13 +144,13 @@ async def update_character(profile: dict):
 
 # Gallery
 @api_router.get("/gallery", response_model=list[GalleryItem])
-async def get_gallery(category: str = None, folder: str = None):
+async def get_gallery(category: str = None, folder: str = None, limit: int = 100, skip: int = 0):
     query = {"is_deleted": False}
     if category and category != "All":
         query["category"] = category
     if folder:
         query["folder"] = folder
-    return await db.gallery.find(query, {"_id": 0}).to_list(1000)
+    return await db.gallery.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
 
 @api_router.post("/gallery", response_model=GalleryItem)
 async def create_gallery_item(item: dict):
@@ -174,8 +174,8 @@ async def delete_gallery_item(id: str):
 
 # Brand Assets
 @api_router.get("/brand", response_model=list[BrandAsset])
-async def get_brand_assets():
-    return await db.brand_assets.find({"is_deleted": False}, {"_id": 0}).to_list(1000)
+async def get_brand_assets(limit: int = 100, skip: int = 0):
+    return await db.brand_assets.find({"is_deleted": False}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
 
 @api_router.post("/brand", response_model=BrandAsset)
 async def create_brand_asset(item: dict):
@@ -190,8 +190,8 @@ async def delete_brand_asset(id: str):
 
 # Licenses
 @api_router.get("/licenses", response_model=list[License])
-async def get_licenses():
-    return await db.licenses.find({"is_deleted": False}, {"_id": 0}).to_list(1000)
+async def get_licenses(limit: int = 100, skip: int = 0):
+    return await db.licenses.find({"is_deleted": False}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
 
 @api_router.post("/licenses", response_model=License)
 async def create_license(item: dict):
@@ -206,8 +206,8 @@ async def delete_license(id: str):
 
 # Debut Assets
 @api_router.get("/debut", response_model=list[DebutAsset])
-async def get_debut_assets(authorized: bool = Depends(verify_token)):
-    return await db.debut_assets.find({"is_deleted": False}, {"_id": 0}).to_list(1000)
+async def get_debut_assets(authorized: bool = Depends(verify_token), limit: int = 100, skip: int = 0):
+    return await db.debut_assets.find({"is_deleted": False}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
 
 @api_router.post("/debut", response_model=DebutAsset)
 async def create_debut_asset(item: dict, authorized: bool = Depends(verify_token)):
