@@ -99,8 +99,8 @@ async def shutdown():
     client.close()
 
 # --- Auth setup ---
-JWT_SECRET = "veri-secret-key-2024"
-DEBUT_PASSWORD = "veri2024"
+JWT_SECRET = os.environ.get('JWT_SECRET', 'veri-secret-key-2024')
+DEBUT_PASSWORD = os.environ.get('DEBUT_PASSWORD', 'veri2024')
 
 def create_token():
     return jwt.encode({"exp": datetime.now(timezone.utc) + timedelta(hours=24)}, JWT_SECRET, algorithm="HS256")

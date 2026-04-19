@@ -1,4 +1,4 @@
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export const fetchCharacter = async () => {
   const res = await fetch(`${API_URL}/api/character`);

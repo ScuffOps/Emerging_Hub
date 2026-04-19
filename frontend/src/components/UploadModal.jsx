@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const UploadModal = ({ isOpen, onClose, onUploadSuccess, editItem = null }) => {
   const [file, setFile] = useState(null);

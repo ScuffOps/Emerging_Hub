@@ -79,9 +79,6 @@ agenthub/agents/youtube/db
 # Mobile development
 android-sdk/ -e 
 # Environment and credential files
-.env
-.env.*
-*.env
 credentials.json
 *.pem
 *.key
