@@ -12,7 +12,7 @@ from pathlib import Path
 import time
 
 # Configuration
-BASE_URL = "https://debut-portal.preview.emergentagent.com/api"
+BASE_URL = "https://avatar-showcase-5.preview.emergentagent.com/api"
 TIMEOUT = 30
 
 class BackendTester:

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Music, Heart, X, Sparkles, Quote } from 'lucide-react';
+import { Music, Heart, X, Sparkles, ScrollText } from 'lucide-react';
 import { useCharacter } from '../context/CharacterContext';
 import '../styles/theme.css';
+
+const LORE_IMAGE_URL = 'https://customer-assets.emergentagent.com/job_a42feb3f-56ce-4ffd-8b00-356ad4cf2ce7/artifacts/suaaqdui_Lore%20pt.I.png';
 
 const Dashboard = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -26,17 +28,29 @@ const Dashboard = () => {
       {/* Bento Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-5xl auto-rows-min">
         
-        {/* Lore Card - 2x2 */}
-        <div className={`md:col-span-2 md:row-span-2 glass-card p-8 rounded-[35px] h-full flex flex-col transition-all duration-700 delay-200 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="flex items-start gap-4 h-full">
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 shrink-0">
-              <Quote className="w-6 h-6 text-[#066DF7]" />
+        {/* Lore Card - 2x2 - Focal "Legend of the Fallen Tenko" image, scrollable */}
+        <div className={`md:col-span-2 md:row-span-2 glass-card rounded-[35px] h-full flex flex-col transition-all duration-700 delay-200 overflow-hidden ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} data-testid="lore-card">
+          <div className="flex items-center gap-3 px-8 pt-7 pb-4 border-b border-white/5 shrink-0">
+            <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10">
+              <ScrollText className="w-5 h-5 text-[#066DF7]" />
             </div>
-            <div className="flex flex-col justify-center h-full">
-              <h3 className="text-2xl font-bold mb-3" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>The Origin</h3>
-              <p className="text-[#7E88B7] leading-relaxed mb-4 text-sm xl:text-base">{character.lore.origin}</p>
-              <p className="text-[#7E88B7] leading-relaxed text-sm xl:text-base">{character.lore.backstory}</p>
+            <div>
+              <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>Legend of the Fallen Tenko</h3>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-[#7E88B7] mt-1">Lore · Part I</p>
             </div>
+          </div>
+          <div
+            className="flex-1 overflow-y-auto custom-scrollbar px-5 py-5"
+            style={{ maxHeight: '680px' }}
+            data-testid="lore-scroll-container"
+          >
+            <img
+              src={LORE_IMAGE_URL}
+              alt="Legend of the Fallen Tenko — Veri's Lore, Part I"
+              className="w-full h-auto rounded-[22px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10"
+              loading="lazy"
+              data-testid="lore-image"
+            />
           </div>
         </div>
 
