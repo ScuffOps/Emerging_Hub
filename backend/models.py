@@ -123,6 +123,48 @@ class AuthRequest(BaseModel):
 class AuthResponse(BaseModel):
     token: str
 
+class ArtistInfo(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str = ""
+    discord: Optional[str] = None
+    twitter: Optional[str] = None
+    vgen: Optional[str] = None
+    portfolio: Optional[str] = None
+
+
+class PaymentEntry(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    amount: float = 0
+    date: Optional[str] = None
+    note: Optional[str] = None
+
+
+class Commission(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str = ""
+    description: Optional[str] = ""
+    artist: ArtistInfo = Field(default_factory=ArtistInfo)
+    platform: str = ""          # Skeb | DA | VGen | Etsy | Fiverr | Twitter | Discord | Other
+    type: str = ""              # L2D | CG | Icon | Bust | Waist-Up | Thigh-Up | Full Body | Outfit | Skeb | Other
+    status: str = "Requested"   # Requested | Waitlisted | Accepted | In Progress | Review | Completed
+    payment_status: str = "unpaid"  # unpaid | partial | paid
+    budget: float = 0
+    currency: str = "USD"
+    payments: List[PaymentEntry] = Field(default_factory=list)
+    deadline: Optional[str] = None      # ISO date
+    finished_date: Optional[str] = None # ISO date
+    usage_rights: str = "personal"      # n/a | personal | streaming | merch | full_commercial
+    visibility: str = "public"          # public | admin | debut
+    reference_urls: List[str] = Field(default_factory=list)
+    final_urls: List[str] = Field(default_factory=list)
+    notes: Optional[str] = ""
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    is_deleted: bool = False
+
+
 class FileRecord(BaseModel):
     model_config = ConfigDict(extra="ignore")
     

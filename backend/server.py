@@ -4,6 +4,7 @@ from pathlib import Path
 import uuid
 from datetime import datetime, timezone, timedelta
 import tempfile
+from typing import Optional
 import aiofiles
 import shutil
 import requests
@@ -22,7 +23,7 @@ load_dotenv(ROOT_DIR / '.env')
 # Setup models
 from models import (
     CharacterProfile, GalleryItem, BrandAsset, License, DebutAsset, 
-    AuthRequest, AuthResponse, FileRecord
+    AuthRequest, AuthResponse, FileRecord, Commission
 )
 
 # --- Configuration & Setup ---
@@ -203,6 +204,137 @@ async def create_license(item: dict):
 async def delete_license(id: str):
     await db.licenses.update_one({"id": id}, {"$set": {"is_deleted": True}})
     return {"status": "deleted"}
+
+# Commissions
+def _optional_auth(authorization: str = Header(None)) -> bool:
+    """Returns True if a valid Bearer token is present, False otherwise. Never raises."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return False
+    token = authorization.split(" ", 1)[1]
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return True
+    except Exception:
+        return False
+
+
+def _derive_payment_status(budget: float, payments: list) -> str:
+    total = sum((p.get("amount") or 0) for p in payments) if payments else 0
+    if budget <= 0 and total <= 0:
+        return "unpaid"
+    if total <= 0:
+        return "unpaid"
+    if total >= budget:
+        return "paid"
+    return "partial"
+
+
+@api_router.get("/commissions", response_model=list[Commission])
+async def list_commissions(
+    authorization: str = Header(None),
+    status: Optional[str] = Query(None),
+    platform: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+    artist: Optional[str] = Query(None),
+    usage_rights: Optional[str] = Query(None),
+    visibility: Optional[str] = Query(None),
+    price_min: Optional[float] = Query(None),
+    price_max: Optional[float] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    limit: int = 200,
+    skip: int = 0,
+):
+    is_admin = _optional_auth(authorization)
+    query = {"is_deleted": False}
+
+    # Visibility gating
+    if not is_admin:
+        query["visibility"] = "public"
+    elif visibility:
+        query["visibility"] = visibility
+
+    if status:
+        query["status"] = status
+    if platform:
+        query["platform"] = platform
+    if type:
+        query["type"] = type
+    if artist:
+        query["artist.name"] = {"$regex": artist, "$options": "i"}
+    if usage_rights:
+        query["usage_rights"] = usage_rights
+    if price_min is not None or price_max is not None:
+        rng = {}
+        if price_min is not None:
+            rng["$gte"] = price_min
+        if price_max is not None:
+            rng["$lte"] = price_max
+        query["budget"] = rng
+    if date_from or date_to:
+        rng = {}
+        if date_from:
+            rng["$gte"] = date_from
+        if date_to:
+            rng["$lte"] = date_to
+        query["deadline"] = rng
+
+    return await db.commissions.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+
+
+@api_router.post("/commissions", response_model=Commission)
+async def create_commission(item: dict, authorized: bool = Depends(verify_token)):
+    payments = item.get("payments") or []
+    if "payment_status" not in item or not item.get("payment_status"):
+        item["payment_status"] = _derive_payment_status(item.get("budget", 0), payments)
+    obj = Commission(**item)
+    await db.commissions.insert_one(obj.model_dump())
+    return obj
+
+
+@api_router.put("/commissions/{item_id}", response_model=Commission)
+async def update_commission(item_id: str, item: dict, authorized: bool = Depends(verify_token)):
+    payments = item.get("payments") or []
+    if "payment_status" not in item or not item.get("payment_status"):
+        item["payment_status"] = _derive_payment_status(item.get("budget", 0), payments)
+    obj = Commission(**item)
+    obj.id = item_id
+    obj.updated_at = datetime.now(timezone.utc).isoformat()
+    res = await db.commissions.replace_one({"id": item_id}, obj.model_dump())
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Commission not found")
+    return obj
+
+
+@api_router.delete("/commissions/{item_id}")
+async def delete_commission(item_id: str, authorized: bool = Depends(verify_token)):
+    await db.commissions.update_one({"id": item_id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+
+@api_router.get("/commissions/stats")
+async def commissions_stats(authorization: str = Header(None)):
+    is_admin = _optional_auth(authorization)
+    query = {"is_deleted": False}
+    if not is_admin:
+        query["visibility"] = "public"
+    items = await db.commissions.find(query, {"_id": 0}).to_list(1000)
+    total_budget = sum((i.get("budget") or 0) for i in items)
+    paid_total = 0
+    for i in items:
+        paid_total += sum((p.get("amount") or 0) for p in (i.get("payments") or []))
+    status_counts = {}
+    for i in items:
+        s = i.get("status") or "Unknown"
+        status_counts[s] = status_counts.get(s, 0) + 1
+    return {
+        "count": len(items),
+        "total_budget": round(total_budget, 2),
+        "total_paid": round(paid_total, 2),
+        "total_outstanding": round(max(total_budget - paid_total, 0), 2),
+        "by_status": status_counts,
+    }
+
 
 # Debut Assets
 @api_router.get("/debut", response_model=list[DebutAsset])

@@ -5,7 +5,8 @@ import {
   User, 
   Image as ImageIcon, 
   Library, 
-  Lock
+  Lock,
+  Palette
 } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import '../../styles/theme.css';
@@ -60,6 +61,9 @@ const MainLayout = ({ children }) => {
         </button>
         <button onClick={() => navigate('/brand')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/brand') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
           <Library className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        </button>
+        <button onClick={() => navigate('/commissions')} data-testid="nav-commissions" className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/commissions') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
+          <Palette className="w-6 h-6 group-hover:scale-110 transition-transform" />
         </button>
         <div className="mt-auto">
           <button onClick={() => navigate('/debut')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/debut') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>

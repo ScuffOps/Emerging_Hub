@@ -63,3 +63,55 @@ export const fetchDebutAssets = async (token) => {
   if (!res.ok) throw new Error('Failed to fetch debut assets');
   return res.json();
 };
+
+// -------- Commissions --------
+const authHeaders = (token) => token ? { Authorization: `Bearer ${token}` } : {};
+
+export const fetchCommissions = async (token, filters = {}) => {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([k, v]) => {
+    if (v !== '' && v !== null && v !== undefined && v !== 'All') params.append(k, v);
+  });
+  const res = await fetch(`${API_URL}/api/commissions?${params.toString()}`, {
+    headers: { ...authHeaders(token) }
+  });
+  if (!res.ok) throw new Error('Failed to fetch commissions');
+  return res.json();
+};
+
+export const fetchCommissionStats = async (token) => {
+  const res = await fetch(`${API_URL}/api/commissions/stats`, {
+    headers: { ...authHeaders(token) }
+  });
+  if (!res.ok) throw new Error('Failed to fetch commission stats');
+  return res.json();
+};
+
+export const createCommission = async (token, data) => {
+  const res = await fetch(`${API_URL}/api/commissions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to create commission');
+  return res.json();
+};
+
+export const updateCommission = async (token, id, data) => {
+  const res = await fetch(`${API_URL}/api/commissions/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to update commission');
+  return res.json();
+};
+
+export const deleteCommission = async (token, id) => {
+  const res = await fetch(`${API_URL}/api/commissions/${id}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders(token) }
+  });
+  if (!res.ok) throw new Error('Failed to delete commission');
+  return res.json();
+};

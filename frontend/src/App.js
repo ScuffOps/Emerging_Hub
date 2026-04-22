@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Gallery from './pages/Gallery';
 import BrandLibrary from './pages/BrandLibrary';
 import DebutAssets from './pages/DebutAssets';
+import Commissions from './pages/Commissions';
 import { CharacterProvider } from './context/CharacterContext';
 import './App.css';
 import './styles/theme.css';
@@ -24,6 +25,7 @@ function App() {
             <Route path="/dashboard/:section" element={<MainLayout><Dashboard /></MainLayout>} />
             <Route path="/gallery" element={<MainLayout><Gallery /></MainLayout>} />
             <Route path="/brand" element={<MainLayout><BrandLibrary /></MainLayout>} />
+            <Route path="/commissions" element={<MainLayout><Commissions /></MainLayout>} />
             <Route path="/debut" element={<MainLayout><DebutAssets /></MainLayout>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -1,0 +1,37 @@
+{
+  "summary": "Tested Commissions module backend (17 pytest cases) and frontend UI (admin unlock, view switcher, filters, modal create+save, persistence, logout). All backend assertions and all critical frontend flows pass against preview URL. Deleted test artifacts. One minor design issue: date inputs use native browser picker instead of shadcn Calendar.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Commissions filter panel & CommissionModal deadline field", "issues": ["Date fields render the native browser date picker (mm/dd/yyyy) instead of the shadcn Calendar component used elsewhere in the app — inconsistent UX."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_commissions.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Optional polish) Replace native <input type='date'> with shadcn Calendar/Popover for f-deadline and filter date_from/date_to to match design system.",
+    "(Optional) Add a GET /api/commissions/{id} endpoint — currently single-item retrieval relies on filtering the list response."
+  ],
+  "critical_code_review_comments": [
+    "server.py uses bare except (line ~115) in verify_token — replace with `except jwt.PyJWTError` for clarity (functional, but lint-style).",
+    "_optional_auth and verify_token duplicate JWT decode logic; consider extracting helper to keep auth single-sourced.",
+    "Commissions PUT replaces entire document via Commission(**item); clients sending a partial payload will reset unspecified fields to model defaults (e.g., status defaults to 'Requested', payments to []). Consider a PATCH or merge with existing record before replace.",
+    "create_commission/update_commission do not re-derive payment_status when client sends an explicit value — by design per spec, but worth documenting.",
+    "Frontend Commissions.jsx is a large single file mixing 4 view layouts + filters + admin modal. Consider splitting Kanban/List/Timeline/Gallery sub-components for maintainability."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_commissions.py (created)",
+    "/app/memory/test_credentials.md (created)"
+  ],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% on tested flows"},
+  "test_credentials": "Debut/Admin password: 'veri2024' (POST /api/auth/verify-debut → JWT, 24h expiry).",
+  "seed_data_creation": "Tests create TEST_-prefixed commissions and clean up in fixtures/finally blocks. UI test created TEST_UI_Commission and was cleaned up after the run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend test file at /app/backend/tests/test_commissions.py covers auth, visibility gating, CRUD, payment_status derivation, filters (status/platform/type/artist regex/usage_rights/price/date/visibility), and stats. All pass. Existing seeded public commission 'Ref Sheet' (KaeArt, Twitter, Full Body, $200 budget, $100 partial) remains in DB — used by stats/list assertions only loosely. Frontend testids: commissions-page, nav-commissions, stats-row, view-switcher, view-{kanban|list|timeline|gallery}, toggle-filters, filters-panel, clear-filters, admin-unlock-btn, admin-password-input, admin-login-submit, admin-logout-btn, new-commission-btn, commission-modal, vis-{public|admin|debut}, f-title/f-artist-name/f-budget/etc, commission-save-btn. NOTE: data-testid='row-' prefix matches edit/delete row buttons too (row-edit-, row-delete-) — use a more specific selector like `[data-testid^='row-']:not([data-testid*='-edit-']):not([data-testid*='-delete-'])` or testid 'row-card-' if counting actual rows.",
+  "rca_of_the_issue": "N/A — no bugs found."
+}
