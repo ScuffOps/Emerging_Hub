@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Music, Heart, X, Sparkles, ScrollText, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Music, Heart, X, Sparkles, ScrollText, User, ChevronLeft, ChevronRight, Maximize2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { useCharacter } from '../context/CharacterContext';
 import '../styles/theme.css';
 
@@ -24,17 +24,45 @@ const Dashboard = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('lore');
   const [loreIndex, setLoreIndex] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const { character, loading } = useCharacter();
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
 
-  if (loading || !character) return null;
-
   const currentLore = LORE_PARTS[loreIndex];
-  const goPrev = () => setLoreIndex((i) => Math.max(0, i - 1));
-  const goNext = () => setLoreIndex((i) => Math.min(LORE_PARTS.length - 1, i + 1));
+  const goPrev = useCallback(() => setLoreIndex((i) => Math.max(0, i - 1)), []);
+  const goNext = useCallback(() => setLoreIndex((i) => Math.min(LORE_PARTS.length - 1, i + 1)), []);
+
+  // Lightbox keyboard controls
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setLightbox(false);
+      else if (e.key === 'ArrowLeft') goPrev();
+      else if (e.key === 'ArrowRight') goNext();
+      else if (e.key === '+' || e.key === '=') setZoom((z) => Math.min(4, z + 0.25));
+      else if (e.key === '-') setZoom((z) => Math.max(0.5, z - 0.25));
+      else if (e.key === '0') setZoom(1);
+    };
+    window.addEventListener('keydown', onKey);
+    // lock body scroll
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [lightbox, goPrev, goNext]);
+
+  // Reset zoom when switching parts or closing
+  useEffect(() => { setZoom(1); }, [loreIndex, lightbox]);
+
+  const openLightbox = () => { if (currentLore.image) setLightbox(true); };
+
+  if (loading || !character) return null;
 
   return (
     <div className="p-8 lg:p-12 pb-32">
@@ -135,14 +163,25 @@ const Dashboard = () => {
             data-testid="lore-scroll-container"
           >
             {currentLore.image ? (
-              <img
-                key={currentLore.id}
-                src={currentLore.image}
-                alt={currentLore.title}
-                className="w-full h-auto rounded-[22px] shadow-[0_20px_60px_rgba(0,0,0,0.6)] ring-1 ring-white/10"
-                loading="lazy"
-                data-testid="lore-image"
-              />
+              <button
+                type="button"
+                onClick={openLightbox}
+                className="group relative block w-full cursor-zoom-in rounded-[22px] overflow-hidden ring-1 ring-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.6)] focus:outline-none focus:ring-2 focus:ring-[#066DF7]"
+                data-testid="lore-image-btn"
+                aria-label="Open fullscreen"
+              >
+                <img
+                  key={currentLore.id}
+                  src={currentLore.image}
+                  alt={currentLore.title}
+                  className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.015]"
+                  loading="lazy"
+                  data-testid="lore-image"
+                />
+                <span className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-sm text-[10px] uppercase tracking-[0.2em] text-[#E1DBC2] border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Maximize2 className="w-3 h-3" />Fullscreen
+                </span>
+              </button>
             ) : (
               <div
                 className="w-full h-[50vh] flex flex-col items-center justify-center rounded-[22px] border border-dashed border-white/10 bg-white/[0.02] gap-3"
@@ -248,6 +287,133 @@ const Dashboard = () => {
                   {motif}
                 </span>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Lightbox ---------- */}
+      {lightbox && currentLore.image && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setLightbox(false)}
+          data-testid="lore-lightbox"
+        >
+          {/* Top bar */}
+          <div
+            className="absolute top-0 inset-x-0 flex items-center justify-between gap-3 px-5 lg:px-8 py-4 pointer-events-none z-20"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="pointer-events-auto min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-[#7E88B7] mb-0.5">Lore · {currentLore.label}</p>
+              <h3 className="text-lg font-bold truncate" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
+                {currentLore.title}
+              </h3>
+            </div>
+            <div className="flex items-center gap-1.5 pointer-events-auto">
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+                data-testid="lightbox-zoom-out"
+                className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[#B1EDE8] transition-all"
+                aria-label="Zoom out"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <div className="px-3 py-1 text-xs tabular-nums text-[#E1DBC2] bg-white/5 border border-white/10 rounded-full" data-testid="lightbox-zoom-level">
+                {Math.round(zoom * 100)}%
+              </div>
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
+                data-testid="lightbox-zoom-in"
+                className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[#B1EDE8] transition-all"
+                aria-label="Zoom in"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoom(1)}
+                data-testid="lightbox-zoom-reset"
+                className="p-2.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[#B1EDE8] transition-all"
+                aria-label="Reset zoom"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setLightbox(false)}
+                data-testid="lightbox-close"
+                className="ml-2 p-2.5 rounded-full bg-white/5 hover:bg-[#600612]/30 border border-white/10 hover:border-[#600612]/40 text-[#E1DBC2] transition-all"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Prev arrow */}
+          {loreIndex > 0 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); goPrev(); }}
+              data-testid="lightbox-prev"
+              className="absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[#E1DBC2] backdrop-blur-md transition-all z-20"
+              aria-label="Previous part"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+          {/* Next arrow */}
+          {loreIndex < LORE_PARTS.length - 1 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); goNext(); }}
+              data-testid="lightbox-next"
+              className="absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[#E1DBC2] backdrop-blur-md transition-all z-20"
+              aria-label="Next part"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Scroll + zoom container */}
+          <div
+            className="relative w-full h-full overflow-auto custom-scrollbar flex items-start justify-center py-20 px-6 z-0"
+            onClick={(e) => e.stopPropagation()}
+            onWheel={(e) => {
+              if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                setZoom((z) => Math.max(0.5, Math.min(4, z + (e.deltaY < 0 ? 0.1 : -0.1))));
+              }
+            }}
+          >
+            <img
+              src={currentLore.image}
+              alt={currentLore.title}
+              className="rounded-[18px] shadow-[0_30px_80px_rgba(0,0,0,0.8)] ring-1 ring-white/10 select-none"
+              style={{
+                maxWidth: zoom === 1 ? 'min(95vw, 1100px)' : 'none',
+                width: zoom === 1 ? 'auto' : `${zoom * 100}%`,
+                transition: 'width 200ms ease',
+              }}
+              draggable={false}
+              data-testid="lightbox-image"
+            />
+          </div>
+
+          {/* Bottom hint */}
+          <div
+            className="absolute bottom-5 inset-x-0 flex justify-center pointer-events-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-2 rounded-full bg-black/55 border border-white/10 backdrop-blur-md text-[11px] text-[#7E88B7] pointer-events-auto flex items-center gap-3">
+              <span>Esc to close</span>
+              <span className="w-px h-3 bg-white/10" />
+              <span>← → switch parts</span>
+              <span className="w-px h-3 bg-white/10" />
+              <span>Ctrl + wheel to zoom</span>
             </div>
           </div>
         </div>
