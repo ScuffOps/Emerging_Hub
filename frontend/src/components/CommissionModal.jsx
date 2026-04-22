@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, Trash2, Globe, Lock, Key } from 'lucide-react';
 import { toast } from 'sonner';
 import { createCommission, updateCommission } from '../api';
+import DatePicker from './DatePicker';
 
 const STATUSES = ['Requested', 'Waitlisted', 'Accepted', 'In Progress', 'Review', 'Completed'];
 const PLATFORMS = ['Skeb', 'DA', 'VGen', 'Etsy', 'Fiverr', 'Twitter', 'Discord', 'Other'];
@@ -127,7 +128,9 @@ const CommissionModal = ({ token, initial, onClose, onSaved }) => {
                 {(form.payments || []).map((p, idx) => (
                   <div key={idx} className="flex items-center gap-2" data-testid={`payment-row-${idx}`}>
                     <input type="number" value={p.amount} onChange={(e) => updatePayment(idx, { amount: e.target.value })} placeholder="Amount" className="flex-1 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#066DF7]" />
-                    <input type="date" value={p.date || ''} onChange={(e) => updatePayment(idx, { date: e.target.value })} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#066DF7]" />
+                    <div className="w-44">
+                      <DatePicker value={p.date || ''} onChange={(v) => updatePayment(idx, { date: v })} placeholder="Date" testId={`payment-date-${idx}`} />
+                    </div>
                     <input type="text" value={p.note || ''} onChange={(e) => updatePayment(idx, { note: e.target.value })} placeholder="note" className="flex-1 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder:text-[#7E88B7] focus:outline-none focus:border-[#066DF7]" />
                     <button type="button" onClick={() => removePayment(idx)} className="p-2 rounded-full bg-[#600612]/20 border border-[#600612]/40 text-[#ff8095]"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
@@ -140,8 +143,12 @@ const CommissionModal = ({ token, initial, onClose, onSaved }) => {
           {/* Dates */}
           <Section title="Timeline">
             <Row>
-              <Field label="Deadline"><Input type="date" value={form.deadline || ''} onChange={(v) => set({ deadline: v })} testId="f-deadline" /></Field>
-              <Field label="Finished"><Input type="date" value={form.finished_date || ''} onChange={(v) => set({ finished_date: v })} testId="f-finished" /></Field>
+              <Field label="Deadline">
+                <DatePicker value={form.deadline || ''} onChange={(v) => set({ deadline: v })} placeholder="Pick deadline" testId="f-deadline" />
+              </Field>
+              <Field label="Finished">
+                <DatePicker value={form.finished_date || ''} onChange={(v) => set({ finished_date: v })} placeholder="Pick finish date" testId="f-finished" />
+              </Field>
             </Row>
           </Section>
 

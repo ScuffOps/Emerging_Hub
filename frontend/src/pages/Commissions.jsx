@@ -9,6 +9,7 @@ import {
   fetchCommissions, fetchCommissionStats, deleteCommission, verifyDebutPassword
 } from '../api';
 import CommissionModal from '../components/CommissionModal';
+import DatePicker from '../components/DatePicker';
 import '../styles/theme.css';
 
 const STATUSES = ['Requested', 'Waitlisted', 'Accepted', 'In Progress', 'Review', 'Completed'];
@@ -502,7 +503,7 @@ const Num = ({ label, value, onChange }) => (
 const DateInput = ({ label, value, onChange }) => (
   <label className="flex flex-col gap-1">
     <span className="text-[10px] uppercase tracking-[0.18em] text-[#7E88B7]">{label}</span>
-    <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#066DF7]" />
+    <DatePicker value={value} onChange={onChange} placeholder="Select date" />
   </label>
 );
 
