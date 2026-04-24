@@ -115,3 +115,9 @@ export const deleteCommission = async (token, id) => {
   if (!res.ok) throw new Error('Failed to delete commission');
   return res.json();
 };
+
+export const fetchCredits = async () => {
+  const res = await fetch(`${API_URL}/api/credits`);
+  if (!res.ok) throw new Error('Failed to fetch credits');
+  return res.json();
+};

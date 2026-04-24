@@ -336,6 +336,57 @@ async def commissions_stats(authorization: str = Header(None)):
     }
 
 
+@api_router.get("/credits")
+async def get_credits():
+    """Public: aggregate Completed + public-visibility commissions by artist."""
+    cursor = db.commissions.find(
+        {"is_deleted": False, "status": "Completed", "visibility": "public"},
+        {"_id": 0},
+    ).sort("finished_date", -1)
+    items = await cursor.to_list(1000)
+
+    by_artist = {}
+    for c in items:
+        artist = c.get("artist") or {}
+        name = (artist.get("name") or "").strip()
+        if not name:
+            continue
+        key = name.lower()
+        entry = by_artist.setdefault(key, {
+            "name": name,
+            "discord": artist.get("discord"),
+            "twitter": artist.get("twitter"),
+            "vgen": artist.get("vgen"),
+            "portfolio": artist.get("portfolio"),
+            "pieces": [],
+            "avatar_url": None,
+        })
+        thumb = None
+        if c.get("final_urls"):
+            thumb = c["final_urls"][0]
+        elif c.get("reference_urls"):
+            thumb = c["reference_urls"][0]
+        piece = {
+            "id": c.get("id"),
+            "title": c.get("title") or "Untitled",
+            "type": c.get("type"),
+            "platform": c.get("platform"),
+            "finished_date": c.get("finished_date"),
+            "thumbnail": thumb,
+        }
+        entry["pieces"].append(piece)
+        if not entry["avatar_url"] and thumb:
+            entry["avatar_url"] = thumb
+        # prefer most complete contact fields if multiple commissions
+        for k in ("discord", "twitter", "vgen", "portfolio"):
+            if not entry.get(k) and artist.get(k):
+                entry[k] = artist.get(k)
+
+    result = sorted(by_artist.values(), key=lambda a: len(a["pieces"]), reverse=True)
+    return {"artists": result, "total_artists": len(result), "total_pieces": len(items)}
+
+
+
 # Debut Assets
 @api_router.get("/debut", response_model=list[DebutAsset])
 async def get_debut_assets(authorized: bool = Depends(verify_token), limit: int = 100, skip: int = 0):
