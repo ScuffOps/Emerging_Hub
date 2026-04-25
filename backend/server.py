@@ -103,9 +103,14 @@ async def shutdown():
 # --- Auth setup ---
 JWT_SECRET = os.environ.get('JWT_SECRET', 'veri-secret-key-2024')
 DEBUT_PASSWORD = os.environ.get('DEBUT_PASSWORD', 'veri2024')
+ADMIN_EMAILS = [e.strip().lower() for e in (os.environ.get('ADMIN_EMAILS', '') or '').split(',') if e.strip()]
+EMERGENT_AUTH_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 
-def create_token():
-    return jwt.encode({"exp": datetime.now(timezone.utc) + timedelta(hours=24)}, JWT_SECRET, algorithm="HS256")
+def create_token(extra: dict | None = None):
+    payload = {"exp": datetime.now(timezone.utc) + timedelta(hours=24)}
+    if extra:
+        payload.update(extra)
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 def verify_token(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -116,6 +121,32 @@ def verify_token(authorization: str = Header(None)):
     except:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     return True
+
+
+async def _is_admin_email(email: str) -> bool:
+    """Email is admin if it's in env allowlist OR in DB admins collection,
+    OR (bootstrap) if no admin exists yet — the first signed-in email becomes admin."""
+    email_l = (email or "").lower()
+    if not email_l:
+        return False
+    if email_l in ADMIN_EMAILS:
+        return True
+    existing = await db.admins.find_one({"email": email_l, "is_deleted": {"$ne": True}}, {"_id": 0})
+    if existing:
+        return True
+    # Bootstrap: zero admins anywhere → first comer wins
+    if not ADMIN_EMAILS:
+        any_admin = await db.admins.count_documents({"is_deleted": {"$ne": True}})
+        if any_admin == 0:
+            await db.admins.insert_one({
+                "email": email_l,
+                "added_at": datetime.now(timezone.utc).isoformat(),
+                "bootstrap": True,
+                "is_deleted": False,
+            })
+            return True
+    return False
+
 
 # --- Routes ---
 @api_router.get("/")
@@ -128,6 +159,180 @@ async def verify_debut(auth: AuthRequest):
     if auth.password == DEBUT_PASSWORD:
         return AuthResponse(token=create_token())
     raise HTTPException(status_code=401, detail="Invalid password")
+
+
+@api_router.post("/auth/google/session")
+async def auth_google_session(payload: dict):
+    """Exchange an Emergent Auth session_id for an admin JWT.
+
+    Body: { session_id: string }
+    """
+    session_id = (payload or {}).get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
+    try:
+        r = requests.get(
+            EMERGENT_AUTH_SESSION_URL,
+            headers={"X-Session-ID": session_id},
+            timeout=15,
+        )
+        r.raise_for_status()
+        data = r.json()
+    except requests.HTTPError:
+        raise HTTPException(status_code=401, detail="Invalid or expired session_id")
+    except Exception as e:
+        logger.error(f"Google auth lookup failed: {e}")
+        raise HTTPException(status_code=502, detail="Auth provider unreachable")
+
+    email = (data.get("email") or "").lower()
+    name = data.get("name") or email
+    picture = data.get("picture")
+
+    if not await _is_admin_email(email):
+        raise HTTPException(status_code=403, detail=f"{email} is not authorized as admin")
+
+    token = create_token({"email": email, "name": name})
+    return {
+        "token": token,
+        "user": {"email": email, "name": name, "picture": picture},
+    }
+
+
+@api_router.get("/auth/me")
+async def auth_me(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        decoded = jwt.decode(authorization.split(" ")[1], JWT_SECRET, algorithms=["HS256"])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return {
+        "email": decoded.get("email"),
+        "name": decoded.get("name"),
+        "is_password_session": "email" not in decoded,
+    }
+
+
+@api_router.get("/auth/admins")
+async def list_admins(authorized: bool = Depends(verify_token)):
+    rows = await db.admins.find({"is_deleted": {"$ne": True}}, {"_id": 0}).to_list(50)
+    return {"admins": rows, "env_allowlist": ADMIN_EMAILS}
+
+
+@api_router.post("/auth/admins")
+async def add_admin(payload: dict, authorized: bool = Depends(verify_token)):
+    email = (payload.get("email") or "").lower().strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email required")
+    existing = await db.admins.find_one({"email": email})
+    if existing:
+        await db.admins.update_one({"email": email}, {"$set": {"is_deleted": False}})
+    else:
+        await db.admins.insert_one({
+            "email": email,
+            "added_at": datetime.now(timezone.utc).isoformat(),
+            "is_deleted": False,
+        })
+    return {"status": "ok", "email": email}
+
+
+@api_router.delete("/auth/admins/{email}")
+async def remove_admin(email: str, authorized: bool = Depends(verify_token)):
+    await db.admins.update_one({"email": email.lower()}, {"$set": {"is_deleted": True}})
+    return {"status": "removed", "email": email.lower()}
+
+
+# ---------------- Merch (Fourthwall) ----------------
+FOURTHWALL_API_KEY = os.environ.get("FOURTHWALL_API_KEY")
+FOURTHWALL_BASES = [
+    ("https://storefront-api.fourthwall.com/v1/collections/all/products", "storefront_token"),
+    ("https://api.fourthwall.com/v1/products", "bearer"),
+]
+_merch_cache = {"data": None, "expires_at": 0}
+_shop_cache = {"public_domain": None, "expires_at": 0}
+
+
+def _fetch_fourthwall_shop():
+    import time
+    now = time.time()
+    if _shop_cache["public_domain"] and _shop_cache["expires_at"] > now:
+        return _shop_cache["public_domain"]
+    try:
+        r = requests.get(
+            "https://storefront-api.fourthwall.com/v1/shop",
+            params={"storefront_token": FOURTHWALL_API_KEY},
+            headers={"User-Agent": "Mozilla/5.0 VeriVT-Site/1.0", "Accept": "application/json"},
+            timeout=10,
+        )
+        if r.status_code == 200:
+            domain = r.json().get("publicDomain")
+            _shop_cache["public_domain"] = domain
+            _shop_cache["expires_at"] = now + 3600
+            return domain
+    except Exception as e:
+        logger.warning(f"Fourthwall shop lookup failed: {e}")
+    return None
+
+
+
+@api_router.get("/merch")
+async def get_merch():
+    """Public proxy for Fourthwall storefront. Caches for 5 minutes."""
+    import time
+    now = time.time()
+    if _merch_cache["data"] and _merch_cache["expires_at"] > now:
+        return _merch_cache["data"]
+    if not FOURTHWALL_API_KEY:
+        return {"products": [], "error": "FOURTHWALL_API_KEY not configured"}
+    shop_domain = _fetch_fourthwall_shop()
+    last_err = None
+    headers_common = {"User-Agent": "Mozilla/5.0 VeriVT-Site/1.0", "Accept": "application/json"}
+    for url, auth_type in FOURTHWALL_BASES:
+        try:
+            if auth_type == "storefront_token":
+                r = requests.get(url, params={"storefront_token": FOURTHWALL_API_KEY, "size": 100}, headers=headers_common, timeout=15)
+            else:
+                r = requests.get(url, headers={**headers_common, "Authorization": f"Bearer {FOURTHWALL_API_KEY}"}, params={"limit": 100}, timeout=15)
+            if r.status_code != 200:
+                last_err = f"{url} → {r.status_code}: {r.text[:200]}"
+                continue
+            raw = r.json()
+            if isinstance(raw, list):
+                results = raw
+            else:
+                results = raw.get("results") or raw.get("products") or raw.get("items") or []
+            products = []
+            for p in results if isinstance(results, list) else []:
+                variants = p.get("variants") or []
+                first_v = variants[0] if variants else {}
+                price_obj = (first_v.get("unitPrice") or p.get("unitPrice") or p.get("price") or {})
+                images = p.get("images") or first_v.get("images") or []
+                if isinstance(images, list) and images:
+                    first_img = images[0]
+                    img = first_img.get("url") if isinstance(first_img, dict) else first_img
+                else:
+                    img = None
+                products.append({
+                    "id": p.get("id") or p.get("slug"),
+                    "name": p.get("name") or p.get("title"),
+                    "slug": p.get("slug"),
+                    "description": p.get("description"),
+                    "price": (price_obj.get("value") if isinstance(price_obj, dict) else price_obj),
+                    "currency": (price_obj.get("currency") if isinstance(price_obj, dict) else "USD"),
+                    "image": img,
+                    "url": p.get("url") or (f"https://{shop_domain}/products/{p.get('slug')}" if (shop_domain and p.get('slug')) else None),
+                })
+            payload = {"products": products, "count": len(products), "shop_url": f"https://{shop_domain}" if shop_domain else None}
+            _merch_cache["data"] = payload
+            _merch_cache["expires_at"] = now + 300
+            return payload
+        except Exception as e:
+            last_err = str(e)
+            continue
+    return {"products": [], "error": f"Fourthwall fetch failed: {last_err}"}
+
+
+
 
 # Character Profile
 @api_router.get("/character", response_model=CharacterProfile)
