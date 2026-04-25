@@ -10,7 +10,10 @@ import {
   HeartHandshake
 } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
+import { useTwitchLive } from '../TwitchWidget';
 import '../../styles/theme.css';
+
+const TWITCH_CHANNEL = 'veri';
 
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -23,6 +26,7 @@ const MainLayout = ({ children }) => {
   }, []);
 
   const isActive = (path) => location.pathname.startsWith(path);
+  const { live: isLive, uptime } = useTwitchLive(TWITCH_CHANNEL);
 
   if (loading) {
     return <div className="flex h-screen bg-[#171718] items-center justify-center text-white">Loading...</div>;
@@ -50,7 +54,27 @@ const MainLayout = ({ children }) => {
       </div>
 
       {/* Sidebar Nav */}
-      <nav className="relative z-50 w-20 lg:w-24 flex flex-col items-center py-10 border-r border-white/5 gap-8 shrink-0 transition-all duration-300" style={{ background: 'rgba(23, 23, 24, 0.4)', backdropFilter: 'blur(20px)' }}>
+      <nav className="relative z-50 w-20 lg:w-24 flex flex-col items-center py-10 border-r border-white/5 gap-6 shrink-0 transition-all duration-300" style={{ background: 'rgba(23, 23, 24, 0.4)', backdropFilter: 'blur(20px)' }}>
+        {/* Live indicator at top */}
+        <a
+          href={`https://www.twitch.tv/${TWITCH_CHANNEL}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="sidebar-live-pulse"
+          title={isLive ? `Live now${uptime ? ' · ' + uptime : ''}` : 'Currently offline'}
+          className={`relative flex items-center justify-center w-12 h-12 rounded-full border transition-all ${
+            isLive
+              ? 'bg-[#ff0033]/15 border-[#ff0033]/50 shadow-[0_0_20px_rgba(255,0,51,0.45)]'
+              : 'bg-white/5 border-white/10 hover:border-white/20'
+          }`}
+        >
+          {isLive && (
+            <span className="absolute inset-0 rounded-full bg-[#ff0033]/30 animate-ping" />
+          )}
+          <span className="relative text-[9px] font-black tracking-[0.18em] uppercase" style={{ color: isLive ? '#ff8095' : '#7E88B7' }}>
+            {isLive ? 'LIVE' : 'OFF'}
+          </span>
+        </a>
         <button onClick={() => navigate('/home')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/home') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#B1EDE8]'}`}>
           <Home className="w-6 h-6 group-hover:scale-110 transition-transform" />
         </button>

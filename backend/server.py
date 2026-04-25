@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 from pathlib import Path
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -282,6 +283,35 @@ async def list_commissions(
     return await db.commissions.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
 
 
+@api_router.put("/commissions/bulk-rename-artist")
+async def bulk_rename_artist(payload: dict, authorized: bool = Depends(verify_token)):
+    """Bulk-update all commissions whose artist.name matches `from_name`.
+
+    Body: { from_name, to_name, twitter?, vgen?, discord?, portfolio? }
+    Empty/missing handle fields are ignored (existing values preserved per-commission).
+    """
+    from_name = (payload.get("from_name") or "").strip()
+    to_name = (payload.get("to_name") or "").strip()
+    if not from_name or not to_name:
+        raise HTTPException(status_code=400, detail="from_name and to_name are required")
+
+    set_doc = {
+        "artist.name": to_name,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    for field in ("twitter", "vgen", "discord", "portfolio"):
+        val = payload.get(field)
+        if val:
+            set_doc[f"artist.{field}"] = val
+
+    res = await db.commissions.update_many(
+        {"artist.name": from_name, "is_deleted": False},
+        {"$set": set_doc},
+    )
+    return {"matched": res.matched_count, "modified": res.modified_count}
+
+
+
 @api_router.post("/commissions", response_model=Commission)
 async def create_commission(item: dict, authorized: bool = Depends(verify_token)):
     payments = item.get("payments") or []
@@ -383,7 +413,62 @@ async def get_credits():
                 entry[k] = artist.get(k)
 
     result = sorted(by_artist.values(), key=lambda a: len(a["pieces"]), reverse=True)
+    for a in result:
+        a["slug"] = _slugify(a["name"])
     return {"artists": result, "total_artists": len(result), "total_pieces": len(items)}
+
+
+def _slugify(name: str) -> str:
+    s = (name or "").lower().strip()
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+    return s.strip("-") or "artist"
+
+
+@api_router.get("/credits/{slug}")
+async def get_credit_artist(slug: str):
+    """Per-artist public deep-link page."""
+    cursor = db.commissions.find(
+        {"is_deleted": False, "status": "Completed", "visibility": "public"},
+        {"_id": 0},
+    ).sort("finished_date", -1)
+    items = await cursor.to_list(1000)
+
+    matching = [c for c in items if _slugify((c.get("artist") or {}).get("name") or "") == slug]
+    if not matching:
+        raise HTTPException(status_code=404, detail="Artist not found")
+
+    artist = (matching[0].get("artist") or {})
+    # collapse to most-complete handle set
+    handles = {"discord": None, "twitter": None, "vgen": None, "portfolio": None}
+    for c in matching:
+        a = c.get("artist") or {}
+        for k in handles:
+            if not handles[k] and a.get(k):
+                handles[k] = a[k]
+
+    pieces = []
+    for c in matching:
+        thumb = (c.get("final_urls") or [None])[0] or (c.get("reference_urls") or [None])[0]
+        pieces.append({
+            "id": c.get("id"),
+            "title": c.get("title"),
+            "type": c.get("type"),
+            "platform": c.get("platform"),
+            "finished_date": c.get("finished_date"),
+            "thumbnail": thumb,
+            "image": (c.get("final_urls") or [None])[0] or (c.get("reference_urls") or [None])[0],
+            "description": c.get("description"),
+        })
+
+    avatar_url = next((p["thumbnail"] for p in pieces if p["thumbnail"]), None)
+    return {
+        "name": artist.get("name") or "Unknown Artist",
+        "slug": slug,
+        **handles,
+        "pieces": pieces,
+        "avatar_url": avatar_url,
+        "count": len(pieces),
+    }
 
 
 

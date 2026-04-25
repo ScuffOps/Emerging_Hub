@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { HeartHandshake, Twitter, MessageCircle, Palette, Globe, Sparkles, ExternalLink, Image as ImageIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { fetchCredits } from '../api';
 import '../styles/theme.css';
@@ -30,10 +31,10 @@ const ArtistCard = ({ a, delay }) => {
       className={`glass-card rounded-[28px] p-6 relative transition-all duration-700 hover:ring-1 hover:ring-[#066DF7]/40 hover:-translate-y-0.5 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
       data-testid={`credit-card-${a.name.replace(/\s+/g, '-').toLowerCase()}`}
     >
-      {/* Avatar + name */}
-      <div className="flex items-start gap-4 mb-4">
+      {/* Avatar + name (clickable into per-artist page) */}
+      <Link to={`/credits/${a.slug || encodeURIComponent(a.name.toLowerCase().replace(/\s+/g, '-'))}`} className="flex items-start gap-4 mb-4 group/header" data-testid={`credit-link-${a.slug || a.name}`}>
         <div className="relative shrink-0">
-          <div className="absolute -inset-0.5 rounded-full bg-gradient-to-br from-[#066DF7]/40 to-[#D477FF]/30 blur-sm opacity-70" />
+          <div className="absolute -inset-0.5 rounded-full bg-gradient-to-br from-[#066DF7]/40 to-[#D477FF]/30 blur-sm opacity-70 group-hover/header:opacity-100 transition-opacity" />
           <div className="relative w-16 h-16 rounded-full overflow-hidden border border-white/10 bg-[#0c0c0d] flex items-center justify-center">
             {a.avatar_url ? (
               <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" loading="lazy" />
@@ -45,14 +46,14 @@ const ArtistCard = ({ a, delay }) => {
           </div>
         </div>
         <div className="flex-1 min-w-0 pt-1">
-          <h3 className="text-lg font-bold truncate" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
+          <h3 className="text-lg font-bold truncate group-hover/header:text-white transition-colors" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
             {a.name}
           </h3>
           <p className="text-[11px] uppercase tracking-[0.18em] text-[#7E88B7] mt-0.5">
-            {a.pieces.length} {a.pieces.length === 1 ? 'piece' : 'pieces'}
+            {a.pieces.length} {a.pieces.length === 1 ? 'piece' : 'pieces'} <span className="text-[#066DF7] ml-1">view →</span>
           </p>
         </div>
-      </div>
+      </Link>
 
       {/* Platform links */}
       {availableLinks.length > 0 && (

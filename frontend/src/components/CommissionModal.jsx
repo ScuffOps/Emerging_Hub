@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Globe, Lock, Key } from 'lucide-react';
+import { X, Plus, Trash2, Globe, Lock, Key, Upload, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createCommission, updateCommission } from '../api';
+import { createCommission, updateCommission, uploadFile } from '../api';
 import DatePicker from './DatePicker';
 
 const STATUSES = ['Requested', 'Waitlisted', 'Accepted', 'In Progress', 'Review', 'Completed'];
@@ -224,23 +224,77 @@ const TextArea = ({ value, onChange, rows = 2, placeholder, testId }) => (
   <textarea value={value || ''} rows={rows} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} data-testid={testId}
     className="px-4 py-2.5 rounded-[22px] bg-white/5 border border-white/10 text-sm text-white placeholder:text-[#7E88B7] focus:outline-none focus:border-[#066DF7] resize-none" />
 );
-const UrlList = ({ label, field, form, add, update, remove }) => (
-  <div>
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-[10px] uppercase tracking-[0.2em] text-[#7E88B7]">{label}</span>
-      <button type="button" onClick={() => add(field)} data-testid={`add-${field}`} className="flex items-center gap-1 text-xs text-[#B1EDE8] hover:text-white"><Plus className="w-3 h-3" />Add</button>
-    </div>
-    <div className="space-y-2">
-      {(form[field] || []).map((url, idx) => (
-        <div key={idx} className="flex items-center gap-2">
-          <input type="url" value={url} onChange={(e) => update(field, idx, e.target.value)} placeholder="https://…" data-testid={`${field}-${idx}`}
-            className="flex-1 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder:text-[#7E88B7] focus:outline-none focus:border-[#066DF7]" />
-          <button type="button" onClick={() => remove(field, idx)} className="p-2 rounded-full bg-[#600612]/20 border border-[#600612]/40 text-[#ff8095]"><Trash2 className="w-3.5 h-3.5" /></button>
+const UrlList = ({ label, field, form, add, update, remove }) => {
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleFiles = async (files) => {
+    const list = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
+    if (list.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of list) {
+        const { url } = await uploadFile(file);
+        // append by reusing the add+update primitives
+        const idx = (form[field] || []).length;
+        add(field);
+        update(field, idx, url);
+      }
+      toast.success(`Uploaded ${list.length} image${list.length === 1 ? '' : 's'}`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Upload failed');
+    } finally { setUploading(false); }
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFiles(e.dataTransfer.files);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] uppercase tracking-[0.2em] text-[#7E88B7]">{label}</span>
+        <div className="flex items-center gap-2">
+          <label className={`flex items-center gap-1 text-xs cursor-pointer transition-colors ${uploading ? 'text-[#7E88B7]' : 'text-[#B1EDE8] hover:text-white'}`} data-testid={`upload-${field}`}>
+            {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+            {uploading ? 'Uploading…' : 'Upload'}
+            <input type="file" accept="image/*" multiple className="hidden" disabled={uploading}
+              onChange={(e) => handleFiles(e.target.files)} />
+          </label>
+          <button type="button" onClick={() => add(field)} data-testid={`add-${field}`} className="flex items-center gap-1 text-xs text-[#B1EDE8] hover:text-white">
+            <Plus className="w-3 h-3" />URL
+          </button>
         </div>
-      ))}
-      {(!form[field] || form[field].length === 0) && <p className="text-xs italic text-[#7E88B7]">None.</p>}
+      </div>
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        className={`mb-2 rounded-[18px] border border-dashed p-3 text-center text-[11px] transition-all ${dragOver ? 'border-[#066DF7] bg-[#066DF7]/10 text-white' : 'border-white/10 text-[#7E88B7]'}`}
+        data-testid={`dropzone-${field}`}
+      >
+        Drop images here or click <span className="text-[#B1EDE8]">Upload</span> above
+      </div>
+      <div className="space-y-2">
+        {(form[field] || []).map((url, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            {url && url.match(/\.(png|jpe?g|gif|webp)/i) && (
+              <div className="w-9 h-9 rounded-lg overflow-hidden border border-white/10 bg-black/30 shrink-0">
+                <img src={url} alt="thumb" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <input type="url" value={url} onChange={(e) => update(field, idx, e.target.value)} placeholder="https://…" data-testid={`${field}-${idx}`}
+              className="flex-1 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder:text-[#7E88B7] focus:outline-none focus:border-[#066DF7]" />
+            <button type="button" onClick={() => remove(field, idx)} className="p-2 rounded-full bg-[#600612]/20 border border-[#600612]/40 text-[#ff8095]"><Trash2 className="w-3.5 h-3.5" /></button>
+          </div>
+        ))}
+        {(!form[field] || form[field].length === 0) && <p className="text-xs italic text-[#7E88B7]">None.</p>}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default CommissionModal;

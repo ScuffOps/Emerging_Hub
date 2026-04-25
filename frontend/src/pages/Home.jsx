@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Book, Palette, Image, Library, Lock, User } from 'lucide-react';
 import { navigationCards } from '../mock';
+import TwitchWidget from '../components/TwitchWidget';
 import '../styles/theme.css';
+
+const TWITCH_CHANNEL = 'veri';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -86,6 +89,12 @@ const Home = () => {
               </div>
             );
           })}
+        </div>
+
+        {/* Twitch live widget */}
+        <div className={`mt-12 max-w-2xl transition-all duration-700 delay-300 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-[#7E88B7] mb-3">Catch the stream</p>
+          <TwitchWidget channel={TWITCH_CHANNEL} />
         </div>
       </div>
     </div>

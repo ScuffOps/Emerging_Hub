@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from './components/ui/sonner';
 import MainLayout from './components/layout/MainLayout';
 import Landing from './pages/Landing';
@@ -10,6 +10,8 @@ import BrandLibrary from './pages/BrandLibrary';
 import DebutAssets from './pages/DebutAssets';
 import Commissions from './pages/Commissions';
 import Credits from './pages/Credits';
+import ArtistCredit from './pages/ArtistCredit';
+import NotFound from './pages/NotFound';
 import { CharacterProvider } from './context/CharacterContext';
 import './App.css';
 import './styles/theme.css';
@@ -28,8 +30,9 @@ function App() {
             <Route path="/brand" element={<MainLayout><BrandLibrary /></MainLayout>} />
             <Route path="/commissions" element={<MainLayout><Commissions /></MainLayout>} />
             <Route path="/credits" element={<MainLayout><Credits /></MainLayout>} />
+            <Route path="/credits/:slug" element={<MainLayout><ArtistCredit /></MainLayout>} />
             <Route path="/debut" element={<MainLayout><DebutAssets /></MainLayout>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
         <Toaster />

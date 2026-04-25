@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus, Filter, LayoutGrid, List as ListIcon, Trello, Clock,
   Search, X, Edit3, Trash2, Eye, Lock, Globe, Key, AlertTriangle, CheckCircle2,
-  DollarSign, Calendar, Hourglass
+  DollarSign, Calendar, Hourglass, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchCommissions, fetchCommissionStats, deleteCommission, verifyDebutPassword
 } from '../api';
 import CommissionModal from '../components/CommissionModal';
+import BulkRenameArtistModal from '../components/BulkRenameArtistModal';
 import DatePicker from '../components/DatePicker';
 import '../styles/theme.css';
 
@@ -283,6 +284,7 @@ const Commissions = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [editing, setEditing] = useState(null); // object or 'new'
+  const [bulkArtist, setBulkArtist] = useState(null); // string artist name to bulk-rename
   const [filters, setFilters] = useState({
     status: 'All', platform: 'All', type: 'All', usage_rights: 'All', visibility: 'All',
     artist: '', price_min: '', price_max: '', date_from: '', date_to: '', search: ''
@@ -359,6 +361,11 @@ const Commissions = () => {
               <button onClick={() => setEditing('new')} data-testid="new-commission-btn"
                 className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white text-sm font-semibold shadow-[0_0_20px_rgba(6,109,247,0.3)] hover:shadow-[0_0_30px_rgba(6,109,247,0.5)] transition-all">
                 <Plus className="w-4 h-4" />New Commission
+              </button>
+              <button onClick={() => setBulkArtist('open')} data-testid="bulk-artist-btn"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D477FF]/10 border border-[#D477FF]/40 text-[#D477FF] text-sm font-semibold hover:bg-[#D477FF]/20 transition-all"
+                title="Re-attribute many commissions at once">
+                <Sparkles className="w-4 h-4" />Bulk Edit Artist
               </button>
               <button onClick={logout} data-testid="admin-logout-btn"
                 className="px-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-[#B1EDE8] text-sm hover:bg-white/10 transition-all">
@@ -473,6 +480,15 @@ const Commissions = () => {
           initial={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load(); }}
+        />
+      )}
+      {bulkArtist && (
+        <BulkRenameArtistModal
+          token={token}
+          fromName={null}
+          artistOptions={Array.from(new Set(items.map((i) => (i.artist?.name || '').trim()).filter(Boolean))).sort()}
+          onClose={() => setBulkArtist(null)}
+          onSaved={() => { setBulkArtist(null); load(); }}
         />
       )}
     </div>

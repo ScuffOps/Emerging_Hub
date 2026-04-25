@@ -121,3 +121,45 @@ export const fetchCredits = async () => {
   if (!res.ok) throw new Error('Failed to fetch credits');
   return res.json();
 };
+
+export const fetchArtistCredit = async (slug) => {
+  const res = await fetch(`${API_URL}/api/credits/${encodeURIComponent(slug)}`);
+  if (!res.ok) throw new Error(`Failed to fetch artist (${res.status})`);
+  return res.json();
+};
+
+export const bulkRenameArtist = async (token, payload) => {
+  const res = await fetch(`${API_URL}/api/commissions/bulk-rename-artist`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('Bulk rename failed');
+  return res.json();
+};
+
+/** Upload a single File via the chunked /api/upload/* pipeline; returns { url } */
+export const uploadFile = async (file, onProgress) => {
+  const initFd = new FormData();
+  initFd.append('filename', file.name);
+  initFd.append('content_type', file.type || 'application/octet-stream');
+  const initRes = await fetch(`${API_URL}/api/upload/init`, { method: 'POST', body: initFd });
+  if (!initRes.ok) throw new Error('Upload init failed');
+  const { upload_id } = await initRes.json();
+
+  // single-chunk for simplicity
+  const chunkFd = new FormData();
+  chunkFd.append('chunk_index', '0');
+  chunkFd.append('file', file);
+  const chunkRes = await fetch(`${API_URL}/api/upload/${upload_id}/chunk`, { method: 'POST', body: chunkFd });
+  if (!chunkRes.ok) throw new Error('Chunk upload failed');
+  if (onProgress) onProgress(0.7);
+
+  const completeFd = new FormData();
+  completeFd.append('filename', file.name);
+  completeFd.append('content_type', file.type || 'application/octet-stream');
+  const completeRes = await fetch(`${API_URL}/api/upload/${upload_id}/complete`, { method: 'POST', body: completeFd });
+  if (!completeRes.ok) throw new Error('Upload complete failed');
+  if (onProgress) onProgress(1);
+  return completeRes.json(); // { id, url }
+};
