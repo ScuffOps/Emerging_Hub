@@ -1,96 +1,51 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# IDE and editors
-.idea/
-.vscode/
-
-# Dependencies
-node_modules/
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# Testing
-/coverage
-
-# Next.js
-/.next/
-/out/
-next-env.d.ts
-*.tsbuildinfo
-
-# Production builds
-/build
-dist/
-dist
-
-# Environment files (comprehensive coverage)
-
-*token.json*
-*credentials.json*
-
-# Logs and debug files
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
-dump.rdb
 
-# System files
+# Dependencies
+node_modules
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# Production builds
+build
+dist
+out
+
+# IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+
+# OS
 .DS_Store
-*.pem
+Thumbs.db
 
-# Python
-__pycache__/
-*pyc*
-venv/
-.venv/
-
-# Development tools
-chainlit.md
-.chainlit
-.ipynb_checkpoints/
-.ac
-
-# Deployment
-.vercel
-
-# Data and databases
-agenthub/agents/youtube/db
-
-# Archive files and large assets
-**/*.zip
-**/*.tar.gz
-**/*.tar
-**/*.tgz
-*.pack
-*.deb
-*.dylib
+# Coverage
+coverage
+.coverage
+htmlcov
 
 # Build caches
 .cache/
 
 # Mobile development
-android-sdk/ -e 
-# Environment and credential files
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# (Note: .env / .env.* are intentionally NOT ignored — Emergent deployment needs them in the repo)
-credentials.json
-*.pem
-*.key
-.credentials
--e 
-# (Note: .env / .env.* are intentionally NOT ignored — Emergent deployment needs them in the repo)
+android-sdk/
+
+# Sensitive admin credentials — never deploy
+memory/test_credentials.md
+
+# Credential files (do NOT include .env — Emergent deployment needs it)
 credentials.json
 *.pem
 *.key
