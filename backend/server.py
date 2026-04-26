@@ -242,6 +242,66 @@ async def remove_admin(email: str, authorized: bool = Depends(verify_token)):
     return {"status": "removed", "email": email.lower()}
 
 
+# ---------------- Design (interactive character ref board) ----------------
+@api_router.get("/design")
+async def list_design_elements():
+    """Public: returns all design elements + the canvas (body image) URL."""
+    rows = await db.design_elements.find(
+        {"is_deleted": {"$ne": True}}, {"_id": 0}
+    ).sort("display_order", 1).to_list(200)
+    char = await db.characters.find_one({}, {"_id": 0, "fullBody": 1, "avatar": 1, "name": 1})
+    return {
+        "elements": rows,
+        "canvas_url": (char or {}).get("fullBody"),
+        "character_name": (char or {}).get("name"),
+    }
+
+
+@api_router.post("/design")
+async def create_design_element(payload: dict, authorized: bool = Depends(verify_token)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name": payload.get("name") or "Untitled element",
+        "category": payload.get("category") or "feature",  # tattoo|accessory|mark|motif|feature|outfit
+        "description": payload.get("description") or "",
+        "thumbnail": payload.get("thumbnail"),
+        "full_image": payload.get("full_image") or payload.get("thumbnail"),
+        "position_x": float(payload.get("position_x") or 50),  # percentage 0-100
+        "position_y": float(payload.get("position_y") or 50),
+        "display_order": int(payload.get("display_order") or 0),
+        "color": payload.get("color"),  # optional accent color
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "is_deleted": False,
+    }
+    await db.design_elements.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/design/{element_id}")
+async def update_design_element(element_id: str, payload: dict, authorized: bool = Depends(verify_token)):
+    set_doc = {k: v for k, v in payload.items() if k in {
+        "name", "category", "description", "thumbnail", "full_image",
+        "position_x", "position_y", "display_order", "color"
+    }}
+    if "position_x" in set_doc: set_doc["position_x"] = float(set_doc["position_x"])
+    if "position_y" in set_doc: set_doc["position_y"] = float(set_doc["position_y"])
+    if "display_order" in set_doc: set_doc["display_order"] = int(set_doc["display_order"])
+    set_doc["updated_at"] = datetime.now(timezone.utc).isoformat()
+    res = await db.design_elements.update_one({"id": element_id}, {"$set": set_doc})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Element not found")
+    doc = await db.design_elements.find_one({"id": element_id}, {"_id": 0})
+    return doc
+
+
+@api_router.delete("/design/{element_id}")
+async def delete_design_element(element_id: str, authorized: bool = Depends(verify_token)):
+    await db.design_elements.update_one({"id": element_id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+
 # ---------------- Merch (Fourthwall) ----------------
 FOURTHWALL_API_KEY = os.environ.get("FOURTHWALL_API_KEY")
 FOURTHWALL_BASES = [

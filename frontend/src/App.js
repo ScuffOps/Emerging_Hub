@@ -12,6 +12,7 @@ import Commissions from './pages/Commissions';
 import Credits from './pages/Credits';
 import ArtistCredit from './pages/ArtistCredit';
 import Merch from './pages/Merch';
+import Design from './pages/Design';
 import AuthCallback from './pages/AuthCallback';
 import NotFound from './pages/NotFound';
 import { CharacterProvider } from './context/CharacterContext';
@@ -31,6 +32,7 @@ function App() {
               <Route path="/home" element={<MainLayout><Home /></MainLayout>} />
               <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
               <Route path="/dashboard/:section" element={<MainLayout><Dashboard /></MainLayout>} />
+              <Route path="/design" element={<MainLayout><Design /></MainLayout>} />
               <Route path="/gallery" element={<MainLayout><Gallery /></MainLayout>} />
               <Route path="/brand" element={<MainLayout><BrandLibrary /></MainLayout>} />
               <Route path="/commissions" element={<MainLayout><Commissions /></MainLayout>} />

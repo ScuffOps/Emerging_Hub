@@ -163,3 +163,36 @@ export const uploadFile = async (file, onProgress) => {
   if (onProgress) onProgress(1);
   return completeRes.json(); // { id, url }
 };
+
+// -------- Design --------
+export const fetchDesign = async () => {
+  const res = await fetch(`${API_URL}/api/design`);
+  if (!res.ok) throw new Error('Failed to fetch design');
+  return res.json();
+};
+export const createDesignElement = async (token, data) => {
+  const res = await fetch(`${API_URL}/api/design`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Create design element failed');
+  return res.json();
+};
+export const updateDesignElement = async (token, id, data) => {
+  const res = await fetch(`${API_URL}/api/design/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Update design element failed');
+  return res.json();
+};
+export const deleteDesignElement = async (token, id) => {
+  const res = await fetch(`${API_URL}/api/design/${id}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders(token) },
+  });
+  if (!res.ok) throw new Error('Delete design element failed');
+  return res.json();
+};

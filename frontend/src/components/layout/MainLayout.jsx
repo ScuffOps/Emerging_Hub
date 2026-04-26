@@ -8,7 +8,8 @@ import {
   Lock,
   Palette,
   HeartHandshake,
-  ShoppingBag
+  ShoppingBag,
+  Sparkles
 } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import { useTwitchLive } from '../TwitchWidget';
@@ -81,6 +82,9 @@ const MainLayout = ({ children }) => {
         </button>
         <button onClick={() => navigate('/dashboard')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/dashboard') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
           <User className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        </button>
+        <button onClick={() => navigate('/design')} data-testid="nav-design" className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/design') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
+          <Sparkles className="w-6 h-6 group-hover:scale-110 transition-transform" />
         </button>
         <button onClick={() => navigate('/gallery')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/gallery') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
           <ImageIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
