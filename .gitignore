@@ -84,19 +84,13 @@ credentials.json
 *.key
 .credentials
 -e 
-# Environment and credential files
-.env
-.env.*
-*.env
+# (Note: .env / .env.* are intentionally NOT ignored — Emergent deployment needs them in the repo)
 credentials.json
 *.pem
 *.key
 .credentials
 -e 
-# Environment and credential files
-.env
-.env.*
-*.env
+# (Note: .env / .env.* are intentionally NOT ignored — Emergent deployment needs them in the repo)
 credentials.json
 *.pem
 *.key

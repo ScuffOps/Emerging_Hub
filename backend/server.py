@@ -553,7 +553,10 @@ async def commissions_stats(authorization: str = Header(None)):
     query = {"is_deleted": False}
     if not is_admin:
         query["visibility"] = "public"
-    items = await db.commissions.find(query, {"_id": 0}).to_list(1000)
+    items = await db.commissions.find(
+        query,
+        {"_id": 0, "budget": 1, "payments": 1, "status": 1},
+    ).to_list(1000)
     total_budget = sum((i.get("budget") or 0) for i in items)
     paid_total = 0
     for i in items:
@@ -576,7 +579,8 @@ async def get_credits():
     """Public: aggregate Completed + public-visibility commissions by artist."""
     cursor = db.commissions.find(
         {"is_deleted": False, "status": "Completed", "visibility": "public"},
-        {"_id": 0},
+        {"_id": 0, "id": 1, "artist": 1, "title": 1, "type": 1, "platform": 1,
+         "finished_date": 1, "final_urls": 1, "reference_urls": 1},
     ).sort("finished_date", -1)
     items = await cursor.to_list(1000)
 
@@ -634,7 +638,8 @@ async def get_credit_artist(slug: str):
     """Per-artist public deep-link page."""
     cursor = db.commissions.find(
         {"is_deleted": False, "status": "Completed", "visibility": "public"},
-        {"_id": 0},
+        {"_id": 0, "id": 1, "artist": 1, "title": 1, "type": 1, "platform": 1,
+         "finished_date": 1, "final_urls": 1, "reference_urls": 1, "description": 1},
     ).sort("finished_date", -1)
     items = await cursor.to_list(1000)
 
