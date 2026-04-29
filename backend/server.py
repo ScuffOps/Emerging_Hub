@@ -279,6 +279,18 @@ async def create_design_element(payload: dict, authorized: bool = Depends(verify
     return doc
 
 
+@api_router.put("/design/reorder")
+async def reorder_design_elements(payload: dict, authorized: bool = Depends(verify_token)):
+    """Body: { ids: [orderedId1, orderedId2, ...] } → assigns display_order in that sequence.
+    Must be defined BEFORE /design/{element_id} so FastAPI matches it first."""
+    ids = payload.get("ids") or []
+    if not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="ids must be a list")
+    for idx, eid in enumerate(ids):
+        await db.design_elements.update_one({"id": eid}, {"$set": {"display_order": idx}})
+    return {"updated": len(ids)}
+
+
 @api_router.put("/design/{element_id}")
 async def update_design_element(element_id: str, payload: dict, authorized: bool = Depends(verify_token)):
     set_doc = {k: v for k, v in payload.items() if k in {
@@ -300,17 +312,6 @@ async def update_design_element(element_id: str, payload: dict, authorized: bool
 async def delete_design_element(element_id: str, authorized: bool = Depends(verify_token)):
     await db.design_elements.update_one({"id": element_id}, {"$set": {"is_deleted": True}})
     return {"status": "deleted"}
-
-
-@api_router.put("/design/reorder")
-async def reorder_design_elements(payload: dict, authorized: bool = Depends(verify_token)):
-    """Body: { ids: [orderedId1, orderedId2, ...] } → assigns display_order in that sequence."""
-    ids = payload.get("ids") or []
-    if not isinstance(ids, list):
-        raise HTTPException(status_code=400, detail="ids must be a list")
-    for idx, eid in enumerate(ids):
-        await db.design_elements.update_one({"id": eid}, {"$set": {"display_order": idx}})
-    return {"updated": len(ids)}
 
 
 # ---------------- Fan Art Submissions ----------------

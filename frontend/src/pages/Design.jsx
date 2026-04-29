@@ -161,6 +161,30 @@ const Design = () => {
     }
   };
 
+  const handleDragStart = (id) => () => setDragId(id);
+  const handleDragOver = (id) => (e) => {
+    if (!dragId || dragId === id) return;
+    e.preventDefault();
+    setDragOverId(id);
+  };
+  const handleDrop = (id) => async (e) => {
+    e.preventDefault();
+    if (!dragId || dragId === id) { setDragId(null); setDragOverId(null); return; }
+    const ids = data.elements.map((el) => el.id);
+    const from = ids.indexOf(dragId);
+    const to = ids.indexOf(id);
+    if (from < 0 || to < 0) { setDragId(null); setDragOverId(null); return; }
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    // optimistic
+    const reordered = ids.map((eid) => data.elements.find((el) => el.id === eid)).filter(Boolean);
+    setData((d) => ({ ...d, elements: reordered }));
+    setDragId(null); setDragOverId(null);
+    try {
+      await reorderDesignElements(token, ids);
+      toast.success('Order saved');
+    } catch { toast.error('Reorder failed'); load(); }
+  };
+
   return (
     <div className="p-8 lg:p-12 pb-32" data-testid="design-page">
       {/* Header */}
@@ -242,10 +266,24 @@ const Design = () => {
       {/* Cards grid */}
       {data.elements.length > 0 && (
         <div className="mt-12 max-w-5xl mx-auto" data-testid="design-cards">
-          <h3 className="text-xs uppercase tracking-[0.25em] text-[#7E88B7] mb-4">All elements</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs uppercase tracking-[0.25em] text-[#7E88B7]">All elements</h3>
+            {isAuthed && adminMode && (
+              <span className="text-[10px] uppercase tracking-[0.2em] text-[#E1B04A]" data-testid="design-reorder-hint">Drag cards to reorder</span>
+            )}
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {data.elements.map((el) => (
-              <DesignCard key={el.id} el={el} onClick={() => handleHotspotClick(el)} />
+              <DesignCard
+                key={el.id}
+                el={el}
+                onClick={() => handleHotspotClick(el)}
+                draggable={isAuthed && adminMode}
+                onDragStart={handleDragStart(el.id)}
+                onDragOver={handleDragOver(el.id)}
+                onDrop={handleDrop(el.id)}
+                isDragOver={dragOverId === el.id}
+              />
             ))}
           </div>
         </div>
