@@ -115,6 +115,8 @@ const MainLayout = ({ children }) => {
 
       {/* Pinned Character Art (Right Side) */}
       {/* Hidden on small screens, fixed on the right on larger screens */}
+      {/* Suppressed on /design where the in-page canvas already shows the full body */}
+      {!isActive('/design') && (
       <aside className={`relative z-20 hidden lg:flex flex-col justify-end w-[35%] xl:w-[40%] h-full pointer-events-none transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-20'}`}>
         {/* Glow effect behind the character */}
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#066DF7] rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-pulse" />
@@ -132,6 +134,7 @@ const MainLayout = ({ children }) => {
           />
         )}
       </aside>
+      )}
     </div>
   );
 };
