@@ -439,35 +439,35 @@ async def delete_gallery_item(id: str):
     await db.gallery.update_one({"id": id}, {"$set": {"is_deleted": True}})
     return {"status": "deleted"}
 
-# Brand Assets
+# Brand Assets — admin only
 @api_router.get("/brand", response_model=list[BrandAsset])
-async def get_brand_assets(limit: int = 100, skip: int = 0):
+async def get_brand_assets(limit: int = 100, skip: int = 0, authorized: bool = Depends(verify_token)):
     return await db.brand_assets.find({"is_deleted": False}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
 
 @api_router.post("/brand", response_model=BrandAsset)
-async def create_brand_asset(item: dict):
+async def create_brand_asset(item: dict, authorized: bool = Depends(verify_token)):
     item_obj = BrandAsset(**item)
     await db.brand_assets.insert_one(item_obj.model_dump())
     return item_obj
 
 @api_router.delete("/brand/{id}")
-async def delete_brand_asset(id: str):
+async def delete_brand_asset(id: str, authorized: bool = Depends(verify_token)):
     await db.brand_assets.update_one({"id": id}, {"$set": {"is_deleted": True}})
     return {"status": "deleted"}
 
-# Licenses
+# Licenses — admin only
 @api_router.get("/licenses", response_model=list[License])
-async def get_licenses(limit: int = 100, skip: int = 0):
+async def get_licenses(limit: int = 100, skip: int = 0, authorized: bool = Depends(verify_token)):
     return await db.licenses.find({"is_deleted": False}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
 
 @api_router.post("/licenses", response_model=License)
-async def create_license(item: dict):
+async def create_license(item: dict, authorized: bool = Depends(verify_token)):
     item_obj = License(**item)
     await db.licenses.insert_one(item_obj.model_dump())
     return item_obj
 
 @api_router.delete("/licenses/{id}")
-async def delete_license(id: str):
+async def delete_license(id: str, authorized: bool = Depends(verify_token)):
     await db.licenses.update_one({"id": id}, {"$set": {"is_deleted": True}})
     return {"status": "deleted"}
 
@@ -497,7 +497,7 @@ def _derive_payment_status(budget: float, payments: list) -> str:
 
 @api_router.get("/commissions", response_model=list[Commission])
 async def list_commissions(
-    authorization: str = Header(None),
+    authorized: bool = Depends(verify_token),
     status: Optional[str] = Query(None),
     platform: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
@@ -511,13 +511,8 @@ async def list_commissions(
     limit: int = 200,
     skip: int = 0,
 ):
-    is_admin = _optional_auth(authorization)
     query = {"is_deleted": False}
-
-    # Visibility gating
-    if not is_admin:
-        query["visibility"] = "public"
-    elif visibility:
+    if visibility:
         query["visibility"] = visibility
 
     if status:
@@ -608,11 +603,8 @@ async def delete_commission(item_id: str, authorized: bool = Depends(verify_toke
 
 
 @api_router.get("/commissions/stats")
-async def commissions_stats(authorization: str = Header(None)):
-    is_admin = _optional_auth(authorization)
+async def commissions_stats(authorized: bool = Depends(verify_token)):
     query = {"is_deleted": False}
-    if not is_admin:
-        query["visibility"] = "public"
     items = await db.commissions.find(
         query,
         {"_id": 0, "budget": 1, "payments": 1, "status": 1},

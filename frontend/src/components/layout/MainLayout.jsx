@@ -12,6 +12,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
+import { useAuth } from '../../context/AuthContext';
 import { useTwitchLive } from '../TwitchWidget';
 import '../../styles/theme.css';
 
@@ -29,6 +30,7 @@ const MainLayout = ({ children }) => {
 
   const isActive = (path) => location.pathname.startsWith(path);
   const { live: isLive, uptime } = useTwitchLive(TWITCH_CHANNEL);
+  const { isAuthed } = useAuth();
 
   if (loading) {
     return <div className="flex h-screen bg-[#171718] items-center justify-center text-white">Loading...</div>;
@@ -89,12 +91,16 @@ const MainLayout = ({ children }) => {
         <button onClick={() => navigate('/gallery')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/gallery') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
           <ImageIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
         </button>
+        {isAuthed && (
         <button onClick={() => navigate('/brand')} className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/brand') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
           <Library className="w-6 h-6 group-hover:scale-110 transition-transform" />
         </button>
+        )}
+        {isAuthed && (
         <button onClick={() => navigate('/commissions')} data-testid="nav-commissions" className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/commissions') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
           <Palette className="w-6 h-6 group-hover:scale-110 transition-transform" />
         </button>
+        )}
         <button onClick={() => navigate('/credits')} data-testid="nav-credits" className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/credits') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
           <HeartHandshake className="w-6 h-6 group-hover:scale-110 transition-transform" />
         </button>

@@ -15,6 +15,7 @@ import Merch from './pages/Merch';
 import Design from './pages/Design';
 import AuthCallback from './pages/AuthCallback';
 import NotFound from './pages/NotFound';
+import RequireAuth from './components/RequireAuth';
 import { CharacterProvider } from './context/CharacterContext';
 import { AuthProvider } from './context/AuthContext';
 import './App.css';
@@ -34,8 +35,8 @@ function App() {
               <Route path="/dashboard/:section" element={<MainLayout><Dashboard /></MainLayout>} />
               <Route path="/design" element={<MainLayout><Design /></MainLayout>} />
               <Route path="/gallery" element={<MainLayout><Gallery /></MainLayout>} />
-              <Route path="/brand" element={<MainLayout><BrandLibrary /></MainLayout>} />
-              <Route path="/commissions" element={<MainLayout><Commissions /></MainLayout>} />
+              <Route path="/brand" element={<MainLayout><RequireAuth label="The Brand Library"><BrandLibrary /></RequireAuth></MainLayout>} />
+              <Route path="/commissions" element={<MainLayout><RequireAuth label="Commissions"><Commissions /></RequireAuth></MainLayout>} />
               <Route path="/credits" element={<MainLayout><Credits /></MainLayout>} />
               <Route path="/credits/:slug" element={<MainLayout><ArtistCredit /></MainLayout>} />
               <Route path="/merch" element={<MainLayout><Merch /></MainLayout>} />

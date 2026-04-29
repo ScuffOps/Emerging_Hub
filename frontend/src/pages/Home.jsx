@@ -3,14 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Book, Palette, Image, Library, Lock, User } from 'lucide-react';
 import { navigationCards } from '../mock';
 import TwitchWidget from '../components/TwitchWidget';
+import { useAuth } from '../context/AuthContext';
 import '../styles/theme.css';
 
 const TWITCH_CHANNEL = 'veri';
+// Routes that should only show for signed-in admins.
+const ADMIN_ONLY_ROUTES = ['/brand', '/commissions'];
 
 const Home = () => {
   const navigate = useNavigate();
   const [hoveredCard, setHoveredCard] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { isAuthed } = useAuth();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -29,6 +33,8 @@ const Home = () => {
     navigate(route);
   };
 
+  const visibleCards = navigationCards.filter((c) => isAuthed || !ADMIN_ONLY_ROUTES.includes(c.route));
+
   return (
     <div className="flex-1 flex flex-col justify-center px-8 lg:px-12 py-20 min-h-screen">
       <div className="max-w-5xl w-full mx-auto">
@@ -44,7 +50,7 @@ const Home = () => {
 
         {/* Navigation cards grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {navigationCards.map((card, index) => {
+          {visibleCards.map((card, index) => {
             const Icon = iconMap[card.icon];
             return (
               <div
