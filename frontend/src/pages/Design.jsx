@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Plus, X, ArrowRight, Tag, Sparkles, MousePointer2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { fetchDesign } from '../api';
+import { fetchDesign, reorderDesignElements } from '../api';
 import { useAuth } from '../context/AuthContext';
 import DesignElementModal from '../components/DesignElementModal';
 import '../styles/theme.css';
@@ -92,12 +92,16 @@ const DetailPane = ({ el, onClose }) => {
   );
 };
 
-const DesignCard = ({ el, onClick }) => (
+const DesignCard = ({ el, onClick, draggable, onDragStart, onDragOver, onDrop, isDragOver }) => (
   <button
     type="button"
     onClick={onClick}
+    draggable={draggable}
+    onDragStart={onDragStart}
+    onDragOver={onDragOver}
+    onDrop={onDrop}
     data-testid={`elem-card-${el.id}`}
-    className="group glass-card rounded-[22px] overflow-hidden text-left transition-all hover:ring-1 hover:ring-white/20 hover:-translate-y-0.5"
+    className={`group glass-card rounded-[22px] overflow-hidden text-left transition-all hover:ring-1 hover:ring-white/20 hover:-translate-y-0.5 ${isDragOver ? 'ring-2 ring-[#066DF7] scale-[1.02]' : ''} ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
   >
     <div className="aspect-square bg-black/30 overflow-hidden">
       {el.thumbnail || el.full_image ? (
@@ -125,6 +129,8 @@ const Design = () => {
   const [editing, setEditing] = useState(null); // 'new' | element | null
   const [pendingPos, setPendingPos] = useState(null);
   const [adminMode, setAdminMode] = useState(false);
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
   const canvasRef = useRef(null);
   const [isLoaded, setIsLoaded] = useState(false);
 

@@ -196,3 +196,49 @@ export const deleteDesignElement = async (token, id) => {
   if (!res.ok) throw new Error('Delete design element failed');
   return res.json();
 };
+export const reorderDesignElements = async (token, ids) => {
+  const res = await fetch(`${API_URL}/api/design/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ ids }),
+  });
+  if (!res.ok) throw new Error('Reorder failed');
+  return res.json();
+};
+
+// -------- Fan Art --------
+export const submitFanart = async (data) => {
+  const res = await fetch(`${API_URL}/api/fanart`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Submission failed');
+  }
+  return res.json();
+};
+export const fetchFanart = async (token, status = 'approved') => {
+  const params = new URLSearchParams({ status });
+  const res = await fetch(`${API_URL}/api/fanart?${params}`, { headers: { ...authHeaders(token) } });
+  if (!res.ok) throw new Error('Failed to fetch fan art');
+  return res.json();
+};
+export const reviewFanart = async (token, id, status) => {
+  const res = await fetch(`${API_URL}/api/fanart/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error('Review failed');
+  return res.json();
+};
+export const deleteFanart = async (token, id) => {
+  const res = await fetch(`${API_URL}/api/fanart/${id}`, {
+    method: 'DELETE',
+    headers: { ...authHeaders(token) },
+  });
+  if (!res.ok) throw new Error('Delete failed');
+  return res.json();
+};

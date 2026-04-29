@@ -9,7 +9,8 @@ import {
   Palette,
   HeartHandshake,
   ShoppingBag,
-  Sparkles
+  Sparkles,
+  Heart
 } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import { useAuth } from '../../context/AuthContext';
@@ -103,6 +104,9 @@ const MainLayout = ({ children }) => {
         )}
         <button onClick={() => navigate('/credits')} data-testid="nav-credits" className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/credits') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
           <HeartHandshake className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        </button>
+        <button onClick={() => navigate('/fanart')} data-testid="nav-fanart" className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/fanart') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
+          <Heart className="w-6 h-6 group-hover:scale-110 transition-transform" />
         </button>
         <button onClick={() => navigate('/merch')} data-testid="nav-merch" className={`group relative p-3 rounded-full transition-all duration-300 ${isActive('/merch') ? 'bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white shadow-[0_0_20px_rgba(6,109,247,0.4)]' : 'hover:bg-white/10 text-[#7E88B7]'}`}>
           <ShoppingBag className="w-6 h-6 group-hover:scale-110 transition-transform" />

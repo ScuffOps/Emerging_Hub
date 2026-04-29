@@ -302,6 +302,77 @@ async def delete_design_element(element_id: str, authorized: bool = Depends(veri
     return {"status": "deleted"}
 
 
+@api_router.put("/design/reorder")
+async def reorder_design_elements(payload: dict, authorized: bool = Depends(verify_token)):
+    """Body: { ids: [orderedId1, orderedId2, ...] } → assigns display_order in that sequence."""
+    ids = payload.get("ids") or []
+    if not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="ids must be a list")
+    for idx, eid in enumerate(ids):
+        await db.design_elements.update_one({"id": eid}, {"$set": {"display_order": idx}})
+    return {"updated": len(ids)}
+
+
+# ---------------- Fan Art Submissions ----------------
+@api_router.post("/fanart")
+async def submit_fanart(payload: dict):
+    """Public submission. status defaults to 'pending'."""
+    title = (payload.get("title") or "").strip()
+    image_url = (payload.get("image_url") or "").strip()
+    submitter_name = (payload.get("submitter_name") or "").strip()
+    if not title or not image_url or not submitter_name:
+        raise HTTPException(status_code=400, detail="title, image_url, submitter_name required")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "title": title[:120],
+        "image_url": image_url,
+        "submitter_name": submitter_name[:80],
+        "submitter_handle": (payload.get("submitter_handle") or "").strip()[:80],
+        "submitter_url": (payload.get("submitter_url") or "").strip()[:200],
+        "message": (payload.get("message") or "").strip()[:500],
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "reviewed_at": None,
+        "is_deleted": False,
+    }
+    await db.fanart.insert_one(doc)
+    doc.pop("_id", None)
+    return {"status": "submitted", "id": doc["id"]}
+
+
+@api_router.get("/fanart")
+async def list_fanart(authorization: str = Header(None), status: Optional[str] = Query("approved")):
+    """Public: only `approved`. Admin: pass status=pending|rejected|all to see others."""
+    is_admin = _optional_auth(authorization)
+    query = {"is_deleted": False}
+    if status and status != "all":
+        query["status"] = status
+    if not is_admin:
+        query["status"] = "approved"
+    rows = await db.fanart.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return {"items": rows, "count": len(rows)}
+
+
+@api_router.patch("/fanart/{item_id}")
+async def review_fanart(item_id: str, payload: dict, authorized: bool = Depends(verify_token)):
+    new_status = payload.get("status")
+    if new_status not in {"approved", "rejected", "pending"}:
+        raise HTTPException(status_code=400, detail="status must be approved|rejected|pending")
+    res = await db.fanart.update_one(
+        {"id": item_id},
+        {"$set": {"status": new_status, "reviewed_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    return {"status": "ok", "new_status": new_status}
+
+
+@api_router.delete("/fanart/{item_id}")
+async def delete_fanart(item_id: str, authorized: bool = Depends(verify_token)):
+    await db.fanart.update_one({"id": item_id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+
 # ---------------- Merch (Fourthwall) ----------------
 FOURTHWALL_API_KEY = os.environ.get("FOURTHWALL_API_KEY")
 FOURTHWALL_BASES = [
