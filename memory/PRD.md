@@ -17,8 +17,13 @@ Inspired by Toyhouse / Carrd. Dark theme, navy→wine gradient, glassmorphism, g
 - Parallax landing, MainLayout w/ sidebar, Bento dashboard
 - Lore/Profile tab split with paginated lore parts
 - Gallery CRUD + chunked upload via Emergent Object Storage
-- Debut password auth (JWT, 24h)
-- **Commissions module**: artist info, platform, type, status flow, split payments, deadlines + overdue, usage rights, public/admin/debut visibility, 4 views (Kanban/List/Timeline/Gallery), filters (artist/platform/type/status/date/rights/price), stats (count/budget/paid/outstanding)
+- Debut password auth (JWT, 24h) + Google OAuth admin
+- **Commissions module**: artist info, platform, type, status flow, split payments, deadlines + overdue, usage rights, public/admin/debut visibility, 4 views (Kanban/List/Timeline/Gallery), filters, stats
+- **Credits Wall**: public `/credits` + per-artist dynamic routing
+- **Twitch Widget**: static offline state with "Watch Live" CTA
+- **Fourthwall Merch** at `/merch` (proxy)
+- **Design page** `/design`: hotspot canvas with click-to-drop in admin mode, sliding detail pane, **drag-and-drop card reordering** (admin), legend
+- **Fan Art** `/fanart` (Phase 2B, 2026-04): public submit modal w/ chunked upload, admin moderation tabs (approved/pending/rejected) with approve/reject/delete + pending count badge
 
 ## Architecture
 - React 19 + react-scripts (craco) + Tailwind + shadcn/ui
@@ -43,15 +48,22 @@ Inspired by Toyhouse / Carrd. Dark theme, navy→wine gradient, glassmorphism, g
 
 ## Testing
 - `/app/backend/tests/test_commissions.py` — 17/17 pass
-- test_credentials.md — debut password `veri2024`
+- `/app/backend/tests/test_fanart_design.py` — 21/21 pass (Phase 2B)
+- test_credentials.md — debut password `veri2024`; localStorage key `veri_admin_token`
 
 ## Prioritized Backlog
 - **P1** Lore Part II/III artwork when ready (drop URL into `LORE_PARTS` in Dashboard.jsx)
-- **P2** Replace native `<input type=date>` with shadcn Calendar/Popover for design consistency on Commissions filters/modal
+- **P1** Trigger production deployment from Emergent dashboard
+- **P2** Random Veri floating button (random gallery item lightbox)
+- **P2** Inline tip-jar / Ko-fi button
+- **P2** Dynamic favicon (time/mood-based)
+- **P2** Replace native `<input type=date>` with shadcn Calendar/Popover on Commissions
 - **P2** Add `GET /api/commissions/{id}` for single retrieval
 - **P2** Lightbox / fullscreen zoom for lore images
-- **P3** Refactor `Commissions.jsx` by splitting views into sub-files (maintainability)
+- **P3** Refactor `Commissions.jsx` by splitting views into sub-files
 - **P3** Merge-style `PATCH /api/commissions/{id}` instead of full replace
+- **P3** Keyboard-accessible (up/down) reorder buttons on Design admin cards (a11y)
+- **P3** Validate http(s) scheme on fanart `image_url` submission
 
 ## Deployment Status
 Deployment-ready. Readiness check passed previously. User triggers deploy from Emergent dashboard.
