@@ -15,6 +15,7 @@ import {
 import { useCharacter } from '../../context/CharacterContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTwitchLive } from '../TwitchWidget';
+import AuthPill from '../AuthPill';
 import '../../styles/theme.css';
 
 const TWITCH_CHANNEL = 'veri';
@@ -122,6 +123,9 @@ const MainLayout = ({ children }) => {
       <main className="relative z-10 flex-1 overflow-y-auto custom-scrollbar">
         {children}
       </main>
+
+      {/* Floating Auth Pill (top-right, persistent) */}
+      <AuthPill />
 
       {/* Pinned Character Art (Right Side) */}
       {/* Hidden on small screens, fixed on the right on larger screens */}
