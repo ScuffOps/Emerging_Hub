@@ -52,12 +52,12 @@ const DetailPane = ({ el, onClose }) => {
   const open = !!el;
   return (
     <div
-      className={`fixed top-0 right-0 h-full w-full max-w-[420px] z-[90] transition-transform duration-500 ease-out ${open ? 'translate-x-0' : 'translate-x-full pointer-events-none'}`}
+      className={`fixed right-5 top-1/2 -translate-y-1/2 w-[min(420px,calc(100vw-2.5rem))] max-h-[85vh] z-[90] transition-all duration-500 ease-out ${open ? 'translate-x-0 opacity-100' : 'translate-x-[120%] opacity-0 pointer-events-none'}`}
       data-testid="design-detail-pane"
     >
-      <div className="h-full glass-card !rounded-none border-l border-white/5 flex flex-col overflow-hidden" style={{ borderRadius: 0 }}>
+      <div className="glass-card flex flex-col overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.65)] ring-1 ring-white/10" style={{ borderRadius: '15px', maxHeight: '85vh' }}>
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 px-6 pt-7 pb-5 border-b border-white/5">
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-white/5">
           <div className="flex-1 min-w-0">
             <span
               className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-[0.22em] mb-2 border"
@@ -65,7 +65,7 @@ const DetailPane = ({ el, onClose }) => {
             >
               <Tag className="w-3 h-3" />{el ? catLabel(el.category) : ''}
             </span>
-            <h2 className="text-2xl font-bold leading-tight" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
+            <h2 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
               {el?.name || ''}
             </h2>
           </div>
@@ -75,9 +75,9 @@ const DetailPane = ({ el, onClose }) => {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
           {el?.full_image && (
-            <div className="rounded-[22px] overflow-hidden bg-black/30 ring-1 ring-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+            <div className="overflow-hidden bg-black/30 ring-1 ring-white/10" style={{ borderRadius: '15px' }}>
               <img src={el.full_image} alt={el.name} className="w-full h-auto block" loading="lazy" />
             </div>
           )}
@@ -151,7 +151,7 @@ const Design = () => {
     if (adminMode) {
       setEditing(el);
     } else {
-      setActive(el);
+      setActive((cur) => (cur?.id === el.id ? null : el)); // toggle
     }
   };
 
