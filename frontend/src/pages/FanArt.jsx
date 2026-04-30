@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, Plus, X, Upload, Loader2, Twitter, ExternalLink, Check, Trash2, Image as ImageIcon, Inbox } from 'lucide-react';
+import { Heart, Plus, X, Twitter, Check, Trash2, Image as ImageIcon, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
-import { submitFanart, fetchFanart, reviewFanart, deleteFanart, uploadFile } from '../api';
+import { submitFanart, fetchFanart, reviewFanart, deleteFanart } from '../api';
 import { useAuth } from '../context/AuthContext';
+import ImagePicker from '../components/ImagePicker';
 import '../styles/theme.css';
 
 const STATUS_TABS = [
@@ -59,20 +60,8 @@ const FanArtCard = ({ item, isAdmin, onApprove, onReject, onDelete }) => {
 
 const SubmitModal = ({ onClose, onSubmitted }) => {
   const [form, setForm] = useState({ title: '', submitter_name: '', submitter_handle: '', submitter_url: '', message: '', image_url: '' });
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const set = (p) => setForm((f) => ({ ...f, ...p }));
-
-  const handleUpload = async (file) => {
-    if (!file) return;
-    setUploading(true);
-    try {
-      const { url } = await uploadFile(file);
-      set({ image_url: url });
-      toast.success('Image uploaded');
-    } catch { toast.error('Upload failed'); }
-    finally { setUploading(false); }
-  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -103,8 +92,16 @@ const SubmitModal = ({ onClose, onSubmitted }) => {
         </div>
 
         <div className="space-y-3">
+          <ImagePicker
+            label="Image"
+            value={form.image_url}
+            onChange={(url) => set({ image_url: url })}
+            aspect="4/5"
+            required
+            testPrefix="fanart-img"
+          />
           <Field label="Your name *">
-            <input value={form.submitter_name} onChange={(e) => set({ submitter_name: e.target.value })} required autoFocus data-testid="submitter-name"
+            <input value={form.submitter_name} onChange={(e) => set({ submitter_name: e.target.value })} required data-testid="submitter-name"
               className="w-full px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#066DF7]" />
           </Field>
           <Field label="Twitter/X handle (optional)">
@@ -114,22 +111,6 @@ const SubmitModal = ({ onClose, onSubmitted }) => {
           <Field label="Title *">
             <input value={form.title} onChange={(e) => set({ title: e.target.value })} required placeholder="What is this piece called?" data-testid="fanart-title"
               className="w-full px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder:text-[#7E88B7] focus:outline-none focus:border-[#066DF7]" />
-          </Field>
-          <Field label="Image *">
-            <div className="flex items-center gap-2">
-              {form.image_url && (
-                <div className="w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-black/30 shrink-0">
-                  <img src={form.image_url} alt="" className="w-full h-full object-cover" />
-                </div>
-              )}
-              <input type="url" value={form.image_url} onChange={(e) => set({ image_url: e.target.value })} placeholder="https://… or upload below" data-testid="fanart-image-url"
-                className="flex-1 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder:text-[#7E88B7] focus:outline-none focus:border-[#066DF7]" />
-              <label className={`flex items-center gap-1 px-3 py-2 rounded-full cursor-pointer text-xs transition-colors ${uploading ? 'bg-white/5 text-[#7E88B7]' : 'bg-white/5 border border-white/10 text-[#B1EDE8] hover:bg-white/10'}`}>
-                {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                {uploading ? '…' : 'Upload'}
-                <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => handleUpload(e.target.files?.[0])} data-testid="fanart-upload" />
-              </label>
-            </div>
           </Field>
           <Field label="Message to Veri (optional)">
             <textarea value={form.message} rows={3} onChange={(e) => set({ message: e.target.value })} placeholder="Anything you want to say…" data-testid="fanart-message"

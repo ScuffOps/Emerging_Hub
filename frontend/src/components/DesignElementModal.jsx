@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { X, Upload, Loader2, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { createDesignElement, updateDesignElement, deleteDesignElement, uploadFile } from '../api';
+import { createDesignElement, updateDesignElement, deleteDesignElement } from '../api';
+import ImagePicker from './ImagePicker';
 
 const CATEGORIES = [
   { id: 'tattoo',    label: 'Tattoo',    color: '#D477FF' },
@@ -21,22 +22,9 @@ const DesignElementModal = ({ token, initial, position, onClose, onSaved, onDele
     position_y: position?.y ?? 50,
     color: '',
   });
-  const [uploading, setUploading] = useState('');
   const [saving, setSaving] = useState(false);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
-
-  const handleUpload = async (field, file) => {
-    if (!file) return;
-    setUploading(field);
-    try {
-      const { url } = await uploadFile(file);
-      set({ [field]: url });
-      // Auto-fill thumbnail when full_image set first
-      if (field === 'full_image' && !form.thumbnail) set({ thumbnail: url });
-    } catch (e) { toast.error('Upload failed'); }
-    finally { setUploading(''); }
-  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -96,8 +84,23 @@ const DesignElementModal = ({ token, initial, position, onClose, onSaved, onDele
               placeholder="Lore, meaning, style notes…" data-testid="elem-desc"
               className="w-full px-4 py-2.5 rounded-[22px] bg-white/5 border border-white/10 text-sm text-white placeholder:text-[#7E88B7] focus:outline-none focus:border-[#066DF7] resize-none" />
           </Field>
-          <ImageRow label="Detail image" field="full_image" form={form} set={set} uploading={uploading === 'full_image'} onUpload={(f) => handleUpload('full_image', f)} />
-          <ImageRow label="Thumbnail (optional · auto from detail)" field="thumbnail" form={form} set={set} uploading={uploading === 'thumbnail'} onUpload={(f) => handleUpload('thumbnail', f)} />
+          <ImagePicker
+            label="Detail image"
+            value={form.full_image}
+            onChange={(url) => {
+              set({ full_image: url });
+              if (url && !form.thumbnail) set({ thumbnail: url });
+            }}
+            aspect="3/4"
+            testPrefix="elem-full"
+          />
+          <ImagePicker
+            label="Thumbnail (optional · auto from detail)"
+            value={form.thumbnail}
+            onChange={(url) => set({ thumbnail: url })}
+            aspect="square"
+            testPrefix="elem-thumb"
+          />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Hotspot X (%)">
               <input type="number" min="0" max="100" step="0.1" value={form.position_x}
@@ -137,25 +140,6 @@ const Field = ({ label, children }) => (
     <span className="text-[10px] uppercase tracking-[0.18em] text-[#7E88B7]">{label}</span>
     {children}
   </label>
-);
-
-const ImageRow = ({ label, field, form, set, uploading, onUpload }) => (
-  <Field label={label}>
-    <div className="flex items-center gap-2">
-      {form[field] && (
-        <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 bg-black/30 shrink-0">
-          <img src={form[field]} alt="" className="w-full h-full object-cover" />
-        </div>
-      )}
-      <input type="url" value={form[field] || ''} onChange={(e) => set({ [field]: e.target.value })} placeholder="https://… or upload"
-        className="flex-1 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder:text-[#7E88B7] focus:outline-none focus:border-[#066DF7]" />
-      <label className={`flex items-center gap-1 px-3 py-2 rounded-full cursor-pointer text-xs transition-colors ${uploading ? 'bg-white/5 text-[#7E88B7]' : 'bg-white/5 border border-white/10 text-[#B1EDE8] hover:bg-white/10'}`}>
-        {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-        {uploading ? '…' : 'Upload'}
-        <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => onUpload(e.target.files?.[0])} />
-      </label>
-    </div>
-  </Field>
 );
 
 export default DesignElementModal;
