@@ -24,6 +24,8 @@ Inspired by Toyhouse / Carrd. Dark theme, navy→wine gradient, glassmorphism, g
 - **Fourthwall Merch** at `/merch` (proxy)
 - **Design page** `/design`: hotspot canvas with click-to-drop in admin mode, sliding detail pane, **drag-and-drop card reordering** (admin), legend
 - **Fan Art** `/fanart` (Phase 2B, 2026-04): public submit modal w/ chunked upload, admin moderation tabs (approved/pending/rejected) with approve/reject/delete + pending count badge
+- **Floating AuthPill** (top-right, persistent): one-click sign in / out from any page; opens shared `AdminLoginModal` (Google + legacy password)
+- **ImagePicker component**: file-first drag-and-drop drop zone with preview + Replace/Remove and a collapsed "Use a URL instead" fallback. Used in FanArt submit + DesignElementModal (full_image + thumbnail)
 
 ## Architecture
 - React 19 + react-scripts (craco) + Tailwind + shadcn/ui
