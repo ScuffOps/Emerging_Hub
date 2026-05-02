@@ -14,8 +14,10 @@ import {
 } from 'lucide-react';
 import { useCharacter } from '../../context/CharacterContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSiteSettings } from '../../context/SiteSettingsContext';
 import { useTwitchLive } from '../TwitchWidget';
 import AuthPill from '../AuthPill';
+import AdminSettingsPanel from '../AdminSettingsPanel';
 import '../../styles/theme.css';
 
 const TWITCH_CHANNEL = 'veri';
@@ -33,6 +35,11 @@ const MainLayout = ({ children }) => {
   const isActive = (path) => location.pathname.startsWith(path);
   const { live: isLive, uptime } = useTwitchLive(TWITCH_CHANNEL);
   const { isAuthed } = useAuth();
+  const { settings } = useSiteSettings();
+
+  const DEFAULT_BG = "https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/cj8cuhxa_Discord_BG.png";
+  const backgroundImage = settings.background_url || DEFAULT_BG;
+  const sidebarCharacterImage = settings.sidebar_character_url || character?.fullBody;
 
   if (loading) {
     return <div className="flex h-screen bg-[#171718] items-center justify-center text-white">Loading...</div>;
@@ -44,7 +51,7 @@ const MainLayout = ({ children }) => {
   return (
     <div className="flex h-screen bg-[#171718] text-white overflow-hidden font-sans relative">
       {/* Background Image */}
-      <div className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000" style={{ backgroundImage: "url('https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/cj8cuhxa_Discord_BG.png')" }} />
+      <div className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000" style={{ backgroundImage: `url('${backgroundImage}')` }} />
       <div className="fixed inset-0 z-0 bg-black/20 mix-blend-multiply pointer-events-none" />
 
       {/* Subtle Particle Effect */}
@@ -126,6 +133,8 @@ const MainLayout = ({ children }) => {
 
       {/* Floating Auth Pill (top-right, persistent) */}
       <AuthPill />
+      {/* Admin Settings Panel (gear button beside the pill, admin-only) */}
+      <AdminSettingsPanel />
 
       {/* Pinned Character Art (Right Side) */}
       {/* Hidden on small screens, fixed on the right on larger screens */}
@@ -136,10 +145,10 @@ const MainLayout = ({ children }) => {
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#066DF7] rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-pulse" />
         
         {/* Character Full Body Render */}
-        {character?.fullBody && (
+        {sidebarCharacterImage && (
           <img 
-            src={character.fullBody} 
-            alt={`${character.name} Full Body`}
+            src={sidebarCharacterImage} 
+            alt={`${character?.name || 'Veri'} Full Body`}
             className="w-full h-auto object-contain max-h-[95vh] drop-shadow-[0_0_30px_rgba(0,0,0,0.8)]"
             style={{ 
               maskImage: 'linear-gradient(to top, transparent 0%, black 10%, black 100%)',

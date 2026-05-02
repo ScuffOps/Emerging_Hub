@@ -267,6 +267,22 @@ export const updateDesignCanvas = async (token, full_body_url) => {
   return res.json();
 };
 
+// -------- Site Settings --------
+export const fetchSiteSettings = async () => {
+  const res = await fetch(`${API_URL}/api/site-settings`);
+  if (!res.ok) throw new Error('Failed to fetch site settings');
+  return res.json();
+};
+export const updateSiteSettings = async (token, data) => {
+  const res = await fetch(`${API_URL}/api/site-settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Update site settings failed');
+  return res.json();
+};
+
 // -------- Fan Art --------
 export const submitFanart = async (data) => {
   const res = await fetch(`${API_URL}/api/fanart`, {

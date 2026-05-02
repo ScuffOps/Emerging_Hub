@@ -19,6 +19,7 @@ import NotFound from './pages/NotFound';
 import RequireAuth from './components/RequireAuth';
 import { CharacterProvider } from './context/CharacterContext';
 import { AuthProvider } from './context/AuthContext';
+import { SiteSettingsProvider } from './context/SiteSettingsContext';
 import './App.css';
 import './styles/theme.css';
 
@@ -26,28 +27,30 @@ function App() {
   return (
     <div className="App">
       <AuthProvider>
-        <CharacterProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/home" element={<MainLayout><Home /></MainLayout>} />
-              <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
-              <Route path="/dashboard/:section" element={<MainLayout><Dashboard /></MainLayout>} />
-              <Route path="/design" element={<MainLayout><Design /></MainLayout>} />
-              <Route path="/gallery" element={<MainLayout><Gallery /></MainLayout>} />
-              <Route path="/brand" element={<MainLayout><RequireAuth label="The Brand Library"><BrandLibrary /></RequireAuth></MainLayout>} />
-              <Route path="/commissions" element={<MainLayout><RequireAuth label="Commissions"><Commissions /></RequireAuth></MainLayout>} />
-              <Route path="/credits" element={<MainLayout><Credits /></MainLayout>} />
-              <Route path="/credits/:slug" element={<MainLayout><ArtistCredit /></MainLayout>} />
-              <Route path="/fanart" element={<MainLayout><FanArt /></MainLayout>} />
-              <Route path="/merch" element={<MainLayout><Merch /></MainLayout>} />
-              <Route path="/debut" element={<MainLayout><DebutAssets /></MainLayout>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-          <Toaster />
-        </CharacterProvider>
+        <SiteSettingsProvider>
+          <CharacterProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/home" element={<MainLayout><Home /></MainLayout>} />
+                <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
+                <Route path="/dashboard/:section" element={<MainLayout><Dashboard /></MainLayout>} />
+                <Route path="/design" element={<MainLayout><Design /></MainLayout>} />
+                <Route path="/gallery" element={<MainLayout><Gallery /></MainLayout>} />
+                <Route path="/brand" element={<MainLayout><RequireAuth label="The Brand Library"><BrandLibrary /></RequireAuth></MainLayout>} />
+                <Route path="/commissions" element={<MainLayout><RequireAuth label="Commissions"><Commissions /></RequireAuth></MainLayout>} />
+                <Route path="/credits" element={<MainLayout><Credits /></MainLayout>} />
+                <Route path="/credits/:slug" element={<MainLayout><ArtistCredit /></MainLayout>} />
+                <Route path="/fanart" element={<MainLayout><FanArt /></MainLayout>} />
+                <Route path="/merch" element={<MainLayout><Merch /></MainLayout>} />
+                <Route path="/debut" element={<MainLayout><DebutAssets /></MainLayout>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+            <Toaster />
+          </CharacterProvider>
+        </SiteSettingsProvider>
       </AuthProvider>
     </div>
   );

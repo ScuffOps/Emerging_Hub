@@ -270,6 +270,34 @@ async def update_design_canvas(payload: dict, authorized: bool = Depends(verify_
     return {"status": "ok", "fullBody": url}
 
 
+# ---------------- Site Settings (sidebar bg, sidebar character override, etc.) ----------------
+SITE_SETTINGS_KEY = "site_settings"
+
+@api_router.get("/site-settings")
+async def get_site_settings():
+    """Public: returns sitewide visual overrides (background, sidebar character)."""
+    doc = await db.settings.find_one({"key": SITE_SETTINGS_KEY}, {"_id": 0, "key": 0}) or {}
+    return {
+        "background_url": doc.get("background_url"),
+        "sidebar_character_url": doc.get("sidebar_character_url"),
+    }
+
+
+@api_router.put("/site-settings")
+async def update_site_settings(payload: dict, authorized: bool = Depends(verify_token)):
+    """Admin: update sitewide visual overrides. Pass empty string to clear an override."""
+    set_doc = {}
+    for k in ("background_url", "sidebar_character_url"):
+        if k in payload:
+            v = payload[k]
+            set_doc[k] = (v or "").strip() or None
+    if not set_doc:
+        raise HTTPException(status_code=400, detail="No allowed fields in payload")
+    set_doc["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.settings.update_one({"key": SITE_SETTINGS_KEY}, {"$set": set_doc}, upsert=True)
+    return {"status": "ok", **{k: set_doc.get(k) for k in ("background_url", "sidebar_character_url") if k in set_doc}}
+
+
 @api_router.post("/design")
 async def create_design_element(payload: dict, authorized: bool = Depends(verify_token)):
     doc = {
