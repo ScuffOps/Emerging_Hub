@@ -12,6 +12,7 @@ const BrandAssetModal = ({ token, initial, onClose, onSaved, onDeleted }) => {
     artist: '', platform: '',
     tags: [], urls: [],
     uploadDate: new Date().toISOString().split('T')[0],
+    visibility: 'public',
   });
   const [tagDraft, setTagDraft] = useState('');
   const [urlDraft, setUrlDraft] = useState('');
@@ -88,6 +89,18 @@ const BrandAssetModal = ({ token, initial, onClose, onSaved, onDeleted }) => {
             <Field label="Platform"><input value={form.platform} onChange={(e) => set({ platform: e.target.value })} placeholder="Twitch · YouTube · X" data-testid="ba-platform" className="w-full px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder:text-[#7E88B7] focus:outline-none focus:border-[#066DF7]" /></Field>
           </div>
           <Field label="Artist"><input value={form.artist} onChange={(e) => set({ artist: e.target.value })} data-testid="ba-artist" className="w-full px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#066DF7]" /></Field>
+
+          <Field label="Visibility">
+            <div className="flex gap-2">
+              {[{ id: 'public', label: 'Public' }, { id: 'private', label: 'Private' }].map((opt) => (
+                <button type="button" key={opt.id} onClick={() => set({ visibility: opt.id })}
+                  data-testid={`ba-vis-${opt.id}`}
+                  className={`flex-1 px-4 py-2 rounded-full text-xs font-semibold border transition-all ${(form.visibility || 'public') === opt.id ? 'bg-[#066DF7]/20 text-white border-[#066DF7]/50' : 'bg-white/5 text-[#7E88B7] border-white/10 hover:text-white'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </Field>
 
           <Field label="Tags">
             <div className="flex flex-wrap gap-1.5 mb-1.5">

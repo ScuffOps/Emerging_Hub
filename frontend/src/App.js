@@ -12,6 +12,7 @@ import Commissions from './pages/Commissions';
 import Credits from './pages/Credits';
 import ArtistCredit from './pages/ArtistCredit';
 import Merch from './pages/Merch';
+import Links from './pages/Links';
 import Design from './pages/Design';
 import FanArt from './pages/FanArt';
 import AuthCallback from './pages/AuthCallback';
@@ -44,6 +45,7 @@ function App() {
                 <Route path="/credits/:slug" element={<MainLayout><ArtistCredit /></MainLayout>} />
                 <Route path="/fanart" element={<MainLayout><FanArt /></MainLayout>} />
                 <Route path="/merch" element={<MainLayout><Merch /></MainLayout>} />
+                <Route path="/links" element={<MainLayout><Links /></MainLayout>} />
                 <Route path="/debut" element={<MainLayout><DebutAssets /></MainLayout>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

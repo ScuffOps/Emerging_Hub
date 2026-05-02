@@ -77,6 +77,7 @@ class GalleryItem(BaseModel):
     uploadDate: str
     description: str
     files: List[str] = Field(default_factory=list)
+    visibility: str = Field(default="public")  # "public" | "private"
     is_deleted: bool = Field(default=False)
 
 class BrandAsset(BaseModel):
@@ -91,6 +92,7 @@ class BrandAsset(BaseModel):
     platform: str
     urls: List[str] = Field(default_factory=list)
     uploadDate: str
+    visibility: str = Field(default="public")  # "public" | "private"
     is_deleted: bool = Field(default=False)
 
 class License(BaseModel):

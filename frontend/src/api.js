@@ -12,12 +12,12 @@ export const fetchCharacter = async () => {
   return res.json();
 };
 
-export const fetchGallery = async (category = 'All', folder = '') => {
+export const fetchGallery = async (category = 'All', folder = '', token = null) => {
   let url = `${API_URL}/api/gallery?`;
   if (category && category !== 'All') url += `category=${encodeURIComponent(category)}&`;
   if (folder && folder !== 'All') url += `folder=${encodeURIComponent(folder)}&`;
   
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
   if (!res.ok) throw new Error('Failed to fetch gallery');
   return res.json();
 };
@@ -286,6 +286,47 @@ export const updateSiteSettings = async (token, data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Update site settings failed');
+  return res.json();
+};
+
+// -------- Social Links --------
+export const fetchSocialLinks = async (token) => {
+  const res = await fetch(`${API_URL}/api/links`, { headers: { ...authHeaders(token) } });
+  if (!res.ok) throw new Error('Failed to fetch links');
+  return res.json();
+};
+export const createSocialLink = async (token, data) => {
+  const res = await fetch(`${API_URL}/api/links`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Create link failed');
+  return res.json();
+};
+export const updateSocialLink = async (token, id, data) => {
+  const res = await fetch(`${API_URL}/api/links/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Update link failed');
+  return res.json();
+};
+export const deleteSocialLink = async (token, id) => {
+  const res = await fetch(`${API_URL}/api/links/${id}`, {
+    method: 'DELETE', headers: { ...authHeaders(token) },
+  });
+  if (!res.ok) throw new Error('Delete link failed');
+  return res.json();
+};
+export const reorderSocialLinks = async (token, ids) => {
+  const res = await fetch(`${API_URL}/api/links/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ ids }),
+  });
+  if (!res.ok) throw new Error('Reorder failed');
   return res.json();
 };
 

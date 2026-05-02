@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Grid3x3, Filter, Search, Plus, FolderOpen } from 'lucide-react';
+import { Grid3x3, Filter, Search, Plus, FolderOpen, EyeOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { fetchGallery, deleteGalleryItem } from '../api';
+import { useAuth } from '../context/AuthContext';
 import UploadModal from '../components/UploadModal';
 import HorizontalFolderCarousel from '../components/HorizontalFolderCarousel';
 import { toast } from 'sonner';
 import '../styles/theme.css';
 
 const Gallery = () => {
+  const { token, isAuthed } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedItem, setSelectedItem] = useState(null);
@@ -21,7 +23,7 @@ const Gallery = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const data = await fetchGallery();
+        const data = await fetchGallery('All', '', token);
         setGalleryItems(data);
         setIsLoaded(true);
       } catch (err) {
@@ -179,10 +181,15 @@ const Gallery = () => {
                 <p className="text-white font-medium transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">Click to view details &rarr;</p>
               </div>
               {/* Status badge */}
-              <div className="absolute top-4 right-4">
+              <div className="absolute top-4 right-4 flex flex-col items-end gap-1.5">
                 <span className={`chip shadow-lg ${getStatusColor(item.status)}`}>
                   {item.status}
                 </span>
+                {isAuthed && item.visibility === 'private' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] uppercase tracking-[0.2em] font-bold bg-[#E1B04A]/85 text-[#171718] backdrop-blur-md shadow-md" data-testid={`gallery-private-${item.id}`}>
+                    <EyeOff className="w-2.5 h-2.5" />Private
+                  </span>
+                )}
               </div>
             </div>
 

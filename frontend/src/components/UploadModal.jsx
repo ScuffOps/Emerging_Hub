@@ -27,7 +27,8 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, editItem = null }) => {
     category: 'Character Design',
     folder: 'Main',
     description: '',
-    tags: ''
+    tags: '',
+    visibility: 'public'
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -362,6 +363,27 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, editItem = null }) => {
                 className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 focus:border-[#066DF7] outline-none resize-none h-24"
                 placeholder="Optional description..."
               />
+            </div>
+
+            <div>
+              <label className="block text-sm text-[#7E88B7] mb-1">Visibility</label>
+              <div className="flex gap-2" data-testid="upload-visibility">
+                {[
+                  { id: 'public',  label: 'Public',  desc: 'Visible to everyone' },
+                  { id: 'private', label: 'Private', desc: 'Only visible to you (admin)' },
+                ].map((opt) => (
+                  <button
+                    type="button"
+                    key={opt.id}
+                    onClick={() => setFormData({ ...formData, visibility: opt.id })}
+                    data-testid={`vis-${opt.id}`}
+                    className={`flex-1 px-4 py-2.5 rounded-full text-xs font-semibold border transition-all ${formData.visibility === opt.id ? 'bg-[#066DF7]/20 text-white border-[#066DF7]/50 shadow-[0_0_14px_rgba(6,109,247,0.3)]' : 'bg-white/5 text-[#7E88B7] border-white/10 hover:text-white hover:bg-white/10'}`}
+                    title={opt.desc}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button

@@ -415,6 +415,76 @@ async def delete_fanart(item_id: str, authorized: bool = Depends(verify_token)):
     return {"status": "deleted"}
 
 
+# ---------------- Social Links (public list, admin CRUD) ----------------
+@api_router.get("/links")
+async def list_links(authorization: str = Header(None)):
+    """Public: returns visible links sorted by display_order. Admin: returns all."""
+    is_admin = _optional_auth(authorization)
+    query = {"is_deleted": {"$ne": True}}
+    if not is_admin:
+        query["is_visible"] = {"$ne": False}
+    rows = await db.social_links.find(query, {"_id": 0}).sort("display_order", 1).to_list(200)
+    return {"items": rows, "count": len(rows)}
+
+
+@api_router.post("/links")
+async def create_link(payload: dict, authorized: bool = Depends(verify_token)):
+    label = (payload.get("label") or "").strip()
+    url = (payload.get("url") or "").strip()
+    if not label or not url:
+        raise HTTPException(status_code=400, detail="label and url required")
+    # Highest display_order + 1
+    last = await db.social_links.find_one({"is_deleted": {"$ne": True}}, sort=[("display_order", -1)])
+    next_order = (last.get("display_order", 0) + 1) if last else 0
+    doc = {
+        "id": str(uuid.uuid4()),
+        "label": label[:60],
+        "url": url[:500],
+        "platform": (payload.get("platform") or "").strip()[:40],
+        "icon": (payload.get("icon") or "").strip()[:40],
+        "color": (payload.get("color") or "").strip()[:24],
+        "description": (payload.get("description") or "").strip()[:200],
+        "is_visible": payload.get("is_visible", True),
+        "display_order": int(payload.get("display_order", next_order)),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "is_deleted": False,
+    }
+    await db.social_links.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/links/reorder")
+async def reorder_links(payload: dict, authorized: bool = Depends(verify_token)):
+    ids = payload.get("ids") or []
+    if not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="ids must be a list")
+    for idx, lid in enumerate(ids):
+        await db.social_links.update_one({"id": lid}, {"$set": {"display_order": idx}})
+    return {"updated": len(ids)}
+
+
+@api_router.put("/links/{link_id}")
+async def update_link(link_id: str, payload: dict, authorized: bool = Depends(verify_token)):
+    allowed = {"label", "url", "platform", "icon", "color", "description", "is_visible", "display_order"}
+    set_doc = {k: v for k, v in payload.items() if k in allowed}
+    if not set_doc:
+        raise HTTPException(status_code=400, detail="No allowed fields")
+    if "display_order" in set_doc: set_doc["display_order"] = int(set_doc["display_order"])
+    set_doc["updated_at"] = datetime.now(timezone.utc).isoformat()
+    res = await db.social_links.update_one({"id": link_id}, {"$set": set_doc})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Link not found")
+    doc = await db.social_links.find_one({"id": link_id}, {"_id": 0})
+    return doc
+
+
+@api_router.delete("/links/{link_id}")
+async def delete_link(link_id: str, authorized: bool = Depends(verify_token)):
+    await db.social_links.update_one({"id": link_id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+
 # ---------------- Merch (Fourthwall) ----------------
 FOURTHWALL_API_KEY = os.environ.get("FOURTHWALL_API_KEY")
 FOURTHWALL_BASES = [
@@ -524,8 +594,12 @@ async def update_character(profile: dict):
 
 # Gallery
 @api_router.get("/gallery", response_model=list[GalleryItem])
-async def get_gallery(category: str = None, folder: str = None, limit: int = 100, skip: int = 0):
+async def get_gallery(category: str = None, folder: str = None, limit: int = 100, skip: int = 0, authorization: str = Header(None)):
+    is_admin = _optional_auth(authorization)
     query = {"is_deleted": False}
+    if not is_admin:
+        # Hide private items from public viewers (treat missing field as public for legacy items)
+        query["$or"] = [{"visibility": {"$ne": "private"}}, {"visibility": {"$exists": False}}]
     if category and category != "All":
         query["category"] = category
     if folder:
