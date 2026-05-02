@@ -257,6 +257,15 @@ export const reorderDesignElements = async (token, ids) => {
   if (!res.ok) throw new Error('Reorder failed');
   return res.json();
 };
+export const updateDesignCanvas = async (token, full_body_url) => {
+  const res = await fetch(`${API_URL}/api/design/canvas`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ full_body_url }),
+  });
+  if (!res.ok) throw new Error('Update canvas failed');
+  return res.json();
+};
 
 // -------- Fan Art --------
 export const submitFanart = async (data) => {

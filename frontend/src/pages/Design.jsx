@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Plus, X, ArrowRight, Tag, Sparkles, MousePointer2 } from 'lucide-react';
+import { Plus, X, ArrowRight, Tag, Sparkles, MousePointer2, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { fetchDesign, reorderDesignElements } from '../api';
+import { fetchDesign, reorderDesignElements, updateDesignCanvas } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { useCharacter } from '../context/CharacterContext';
 import DesignElementModal from '../components/DesignElementModal';
+import ImagePicker from '../components/ImagePicker';
 import '../styles/theme.css';
 
 const CATEGORY_META = {
@@ -123,6 +125,7 @@ const DesignCard = ({ el, onClick, draggable, onDragStart, onDragOver, onDrop, i
 
 const Design = () => {
   const { token, isAuthed } = useAuth();
+  const { setCharacter } = useCharacter();
   const [data, setData] = useState({ elements: [], canvas_url: null });
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null); // active element
@@ -131,6 +134,7 @@ const Design = () => {
   const [adminMode, setAdminMode] = useState(false);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [canvasEditOpen, setCanvasEditOpen] = useState(false);
   const canvasRef = useRef(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -202,6 +206,14 @@ const Design = () => {
         </div>
         {isAuthed && (
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCanvasEditOpen(true)}
+              data-testid="design-canvas-edit"
+              title="Change main image"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-[#B1EDE8] text-sm font-semibold hover:bg-white/10 transition-all"
+            >
+              <ImageIcon className="w-4 h-4" />Change image
+            </button>
             <button
               onClick={() => setAdminMode((s) => !s)}
               data-testid="design-admin-toggle"
@@ -301,6 +313,59 @@ const Design = () => {
           onDeleted={() => { setEditing(null); setActive(null); load(); }}
         />
       )}
+
+      {canvasEditOpen && (
+        <CanvasEditModal
+          token={token}
+          current={data.canvas_url}
+          onClose={() => setCanvasEditOpen(false)}
+          onSaved={(newUrl) => {
+            setCanvasEditOpen(false);
+            setCharacter((c) => c ? { ...c, fullBody: newUrl } : c);
+            load();
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+const CanvasEditModal = ({ token, current, onClose, onSaved }) => {
+  const [url, setUrl] = useState(current || '');
+  const [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (!url) { toast.error('Please choose or paste an image'); return; }
+    setSaving(true);
+    try {
+      await updateDesignCanvas(token, url);
+      toast.success('Main image updated');
+      onSaved(url);
+    } catch (e) { toast.error(e.message || 'Update failed'); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()}
+        className="glass-card rounded-[28px] w-full max-w-md p-7 max-h-[92vh] overflow-y-auto custom-scrollbar"
+        data-testid="canvas-edit-modal">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
+              Change main image
+            </h3>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[#7E88B7] mt-0.5">Replaces the canvas on this page + sidebar</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#B1EDE8]"><X className="w-4 h-4" /></button>
+        </div>
+        <ImagePicker label="Main character image" value={url} onChange={setUrl} aspect="3/4" testPrefix="canvas-img" />
+        <div className="flex items-center justify-end gap-2 mt-5">
+          <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-sm text-[#B1EDE8] hover:bg-white/10">Cancel</button>
+          <button type="button" onClick={submit} disabled={saving} data-testid="canvas-save-btn"
+            className="px-6 py-2.5 rounded-full bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white text-sm font-semibold shadow-[0_0_20px_rgba(6,109,247,0.35)] disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

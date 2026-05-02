@@ -257,6 +257,19 @@ async def list_design_elements():
     }
 
 
+@api_router.put("/design/canvas")
+async def update_design_canvas(payload: dict, authorized: bool = Depends(verify_token)):
+    """Admin: update the character's fullBody image used as the Design page canvas."""
+    url = (payload.get("full_body_url") or payload.get("fullBody") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="full_body_url required")
+    res = await db.characters.update_one({}, {"$set": {"fullBody": url}})
+    if res.matched_count == 0:
+        # No character doc — create a minimal one so update sticks
+        await db.characters.insert_one({"id": str(uuid.uuid4()), "name": "Veri", "fullBody": url})
+    return {"status": "ok", "fullBody": url}
+
+
 @api_router.post("/design")
 async def create_design_element(payload: dict, authorized: bool = Depends(verify_token)):
     doc = {
