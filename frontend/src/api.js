@@ -1,4 +1,10 @@
-const API_URL = process.env.REACT_APP_BACKEND_URL;
+// Use the current page's origin so API calls work on any domain (preview, custom domain, etc.).
+// The Emergent ingress routes /api/* to the backend on every domain, so this is portable
+// across deploys without rebuilding when the domain changes.
+// Falls back to REACT_APP_BACKEND_URL during SSR/build (no window).
+const API_URL = (typeof window !== 'undefined' && window.location?.origin)
+  ? window.location.origin
+  : (process.env.REACT_APP_BACKEND_URL || '');
 
 export const fetchCharacter = async () => {
   const res = await fetch(`${API_URL}/api/character`);

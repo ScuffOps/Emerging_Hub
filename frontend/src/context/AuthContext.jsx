@@ -5,7 +5,9 @@ const USER_KEY = 'veri_admin_user';
 
 const AuthContext = createContext(null);
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
+const API_URL = (typeof window !== 'undefined' && window.location?.origin)
+  ? window.location.origin
+  : (process.env.REACT_APP_BACKEND_URL || '');
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '');

@@ -3,7 +3,9 @@ import { ShoppingBag, ExternalLink, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import '../styles/theme.css';
 
-const API = process.env.REACT_APP_BACKEND_URL;
+const API = (typeof window !== 'undefined' && window.location?.origin)
+  ? window.location.origin
+  : (process.env.REACT_APP_BACKEND_URL || '');
 
 const fmtPrice = (val, cur = 'USD') => {
   const n = Number(val);
