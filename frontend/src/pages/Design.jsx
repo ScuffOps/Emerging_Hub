@@ -54,7 +54,9 @@ const Hotspot = ({ el, active, isAdmin, onClick, onDragStart, isDragging }) => {
 
 const DetailPane = ({ el, onClose, isAdmin, onEdit, onDelete }) => {
   const open = !!el;
+  const [zoomed, setZoomed] = useState(false);
   return (
+    <>
     <div
       className={`fixed right-5 top-1/2 -translate-y-1/2 w-[min(420px,calc(100vw-2.5rem))] max-h-[85vh] z-[90] transition-all duration-500 ease-out ${open ? 'translate-x-0 opacity-100' : 'translate-x-[120%] opacity-0 pointer-events-none'}`}
       data-testid="design-detail-pane"
@@ -80,9 +82,27 @@ const DetailPane = ({ el, onClose, isAdmin, onEdit, onDelete }) => {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
-          {el?.full_image && (
-            <div className="overflow-hidden bg-black/30 ring-1 ring-white/10" style={{ borderRadius: '15px' }}>
+          {el?.full_image ? (
+            <button
+              type="button"
+              onClick={() => setZoomed(true)}
+              data-testid="detail-image-zoom"
+              title="Click to view full size"
+              className="group relative block w-full overflow-hidden bg-black/30 ring-1 ring-white/10 hover:ring-[#B1EDE8]/30 transition-all"
+              style={{ borderRadius: '15px' }}
+            >
               <img src={el.full_image} alt={el.name} className="w-full h-auto block" loading="lazy" />
+              <span className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                <span className="px-3 py-1.5 rounded-full text-[10px] uppercase tracking-[0.2em] font-bold bg-black/60 backdrop-blur-md text-[#E1DBC2] border border-white/15">
+                  Click to enlarge
+                </span>
+              </span>
+            </button>
+          ) : (
+            <div className="w-full rounded-[15px] bg-white/[0.03] border border-dashed border-white/10 py-10 flex flex-col items-center justify-center gap-1 text-center">
+              <ImageIcon className="w-5 h-5 text-[#7E88B7]" />
+              <p className="text-[10px] uppercase tracking-[0.22em] text-[#7E88B7]">No detail image yet</p>
+              {isAdmin && <p className="text-[10px] text-[#7E88B7]">Click "Edit details" below to add one.</p>}
             </div>
           )}
           {el?.description ? (
@@ -107,6 +127,33 @@ const DetailPane = ({ el, onClose, isAdmin, onEdit, onDelete }) => {
         )}
       </div>
     </div>
+
+    {/* Fullscreen lightbox for detail image */}
+    {zoomed && el?.full_image && (
+      <div
+        className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in"
+        onClick={() => setZoomed(false)}
+        data-testid="detail-lightbox"
+      >
+        <button
+          onClick={() => setZoomed(false)}
+          className="absolute top-5 right-5 p-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[#E1DBC2]"
+          data-testid="detail-lightbox-close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <img
+          src={el.full_image}
+          alt={el.name}
+          onClick={(e) => e.stopPropagation()}
+          className="max-w-[95vw] max-h-[92vh] object-contain rounded-[15px] shadow-[0_30px_80px_rgba(0,0,0,0.8)]"
+        />
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-xs text-[#E1DBC2] max-w-[80vw] truncate">
+          {el.name}
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
