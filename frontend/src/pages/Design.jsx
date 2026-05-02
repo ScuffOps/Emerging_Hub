@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Plus, X, ArrowRight, Tag, Sparkles, MousePointer2, Image as ImageIcon } from 'lucide-react';
+import { Plus, X, ArrowRight, Tag, Sparkles, MousePointer2, Image as ImageIcon, Move, Trash2, Edit } from 'lucide-react';
 import { toast } from 'sonner';
-import { fetchDesign, reorderDesignElements, updateDesignCanvas } from '../api';
+import { fetchDesign, reorderDesignElements, updateDesignCanvas, updateDesignElement, deleteDesignElement } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useCharacter } from '../context/CharacterContext';
 import DesignElementModal from '../components/DesignElementModal';
@@ -19,20 +19,22 @@ const CATEGORY_META = {
 const catColor = (c) => CATEGORY_META[c]?.color || '#066DF7';
 const catLabel = (c) => CATEGORY_META[c]?.label || (c || 'Element');
 
-const Hotspot = ({ el, active, isAdmin, onClick }) => {
+const Hotspot = ({ el, active, isAdmin, onClick, onDragStart, isDragging }) => {
   const color = catColor(el.category);
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseDown={isAdmin ? onDragStart : undefined}
+      onTouchStart={isAdmin ? onDragStart : undefined}
       data-testid={`hotspot-${el.id}`}
-      className="absolute -translate-x-1/2 -translate-y-1/2 group focus:outline-none"
-      style={{ left: `${el.position_x}%`, top: `${el.position_y}%` }}
+      className={`absolute -translate-x-1/2 -translate-y-1/2 group focus:outline-none ${isAdmin ? 'cursor-move' : ''} ${isDragging ? 'z-50' : ''}`}
+      style={{ left: `${el.position_x}%`, top: `${el.position_y}%`, touchAction: 'none' }}
       aria-label={el.name}
     >
       <span className="absolute inset-0 -m-3 rounded-full animate-ping" style={{ backgroundColor: `${color}40` }} />
       <span
-        className={`relative block rounded-full border-2 transition-all duration-300 ${active ? 'w-6 h-6 scale-110 shadow-[0_0_22px_currentColor]' : 'w-4 h-4 group-hover:w-5 group-hover:h-5'}`}
+        className={`relative block rounded-full border-2 transition-all duration-300 ${active ? 'w-6 h-6 scale-110 shadow-[0_0_22px_currentColor]' : 'w-4 h-4 group-hover:w-5 group-hover:h-5'} ${isDragging ? 'scale-125 ring-2 ring-white/80' : ''}`}
         style={{
           background: color,
           color,
@@ -44,13 +46,13 @@ const Hotspot = ({ el, active, isAdmin, onClick }) => {
         {el.name}
       </span>
       {isAdmin && (
-        <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-[#E1B04A] border border-[#171718]" title="Admin: click to edit" />
+        <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-[#E1B04A] border border-[#171718]" title="Admin: drag to reposition · click to edit" />
       )}
     </button>
   );
 };
 
-const DetailPane = ({ el, onClose }) => {
+const DetailPane = ({ el, onClose, isAdmin, onEdit, onDelete }) => {
   const open = !!el;
   return (
     <div
@@ -89,6 +91,20 @@ const DetailPane = ({ el, onClose }) => {
             <p className="text-xs italic text-[#7E88B7]">No description yet.</p>
           )}
         </div>
+
+        {/* Admin actions */}
+        {isAdmin && el && (
+          <div className="border-t border-white/5 px-5 py-3 flex items-center justify-end gap-2" data-testid="detail-admin-actions">
+            <button onClick={() => onDelete(el)} data-testid={`detail-delete-${el.id}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#600612]/20 border border-[#600612]/40 text-[#ff8095] text-xs hover:bg-[#600612]/30">
+              <Trash2 className="w-3 h-3" />Delete
+            </button>
+            <button onClick={() => onEdit(el)} data-testid={`detail-edit-${el.id}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[#B1EDE8] text-xs hover:bg-white/10">
+              <Edit className="w-3 h-3" />Edit details
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -134,6 +150,7 @@ const Design = () => {
   const [adminMode, setAdminMode] = useState(false);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [hotspotDragId, setHotspotDragId] = useState(null);
   const [canvasEditOpen, setCanvasEditOpen] = useState(false);
   const canvasRef = useRef(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -158,11 +175,65 @@ const Design = () => {
   };
 
   const handleHotspotClick = (el) => {
-    if (adminMode) {
-      setEditing(el);
-    } else {
-      setActive((cur) => (cur?.id === el.id ? null : el)); // toggle
-    }
+    if (hotspotDragId) return; // suppress click after drag
+    // Both public and admin: open detail pane (admin sees Edit/Delete actions in the pane)
+    setActive((cur) => (cur?.id === el.id ? null : el));
+  };
+
+  const handleHotspotDragStart = (el) => (e) => {
+    if (!adminMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setHotspotDragId(el.id);
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    let lastX = el.position_x;
+    let lastY = el.position_y;
+    let moved = false;
+
+    const point = (ev) => {
+      const t = ev.touches ? ev.touches[0] : ev;
+      return { x: t.clientX, y: t.clientY };
+    };
+    const onMove = (ev) => {
+      const p = point(ev);
+      const x = Math.max(0, Math.min(100, ((p.x - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((p.y - rect.top) / rect.height) * 100));
+      lastX = x; lastY = y;
+      moved = true;
+      setData((d) => ({
+        ...d,
+        elements: d.elements.map((it) => it.id === el.id ? { ...it, position_x: x, position_y: y } : it),
+      }));
+    };
+    const onUp = async () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+      if (moved) {
+        try {
+          await updateDesignElement(token, el.id, { position_x: lastX, position_y: lastY });
+          toast.success('Position saved');
+        } catch { toast.error('Save position failed'); load(); }
+      }
+      // small delay to suppress click event
+      setTimeout(() => setHotspotDragId(null), 50);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onUp);
+  };
+
+  const handleHotspotDelete = async (el) => {
+    if (!window.confirm(`Delete "${el.name}"?`)) return;
+    try {
+      await deleteDesignElement(token, el.id);
+      toast.success('Deleted');
+      setActive(null);
+      load();
+    } catch { toast.error('Delete failed'); }
   };
 
   const handleDragStart = (id) => () => setDragId(id);
@@ -253,7 +324,9 @@ const Design = () => {
               el={el}
               active={active?.id === el.id}
               isAdmin={adminMode}
+              isDragging={hotspotDragId === el.id}
               onClick={(e) => { e.stopPropagation(); handleHotspotClick(el); }}
+              onDragStart={handleHotspotDragStart(el)}
             />
           ))}
 
@@ -301,7 +374,13 @@ const Design = () => {
         </div>
       )}
 
-      <DetailPane el={active} onClose={() => setActive(null)} />
+      <DetailPane
+        el={active}
+        onClose={() => setActive(null)}
+        isAdmin={isAuthed}
+        onEdit={(el) => { setActive(null); setEditing(el); }}
+        onDelete={handleHotspotDelete}
+      />
 
       {editing && (
         <DesignElementModal
