@@ -522,6 +522,16 @@ async def create_brand_asset(item: dict, authorized: bool = Depends(verify_token
     await db.brand_assets.insert_one(item_obj.model_dump())
     return item_obj
 
+@api_router.put("/brand/{id}", response_model=BrandAsset)
+async def update_brand_asset(id: str, item: dict, authorized: bool = Depends(verify_token)):
+    existing = await db.brand_assets.find_one({"id": id, "is_deleted": False}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    merged = {**existing, **item, "id": id}
+    item_obj = BrandAsset(**merged)
+    await db.brand_assets.update_one({"id": id}, {"$set": item_obj.model_dump()})
+    return item_obj
+
 @api_router.delete("/brand/{id}")
 async def delete_brand_asset(id: str, authorized: bool = Depends(verify_token)):
     await db.brand_assets.update_one({"id": id}, {"$set": {"is_deleted": True}})
@@ -536,6 +546,16 @@ async def get_licenses(limit: int = 100, skip: int = 0, authorized: bool = Depen
 async def create_license(item: dict, authorized: bool = Depends(verify_token)):
     item_obj = License(**item)
     await db.licenses.insert_one(item_obj.model_dump())
+    return item_obj
+
+@api_router.put("/licenses/{id}", response_model=License)
+async def update_license(id: str, item: dict, authorized: bool = Depends(verify_token)):
+    existing = await db.licenses.find_one({"id": id, "is_deleted": False}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="License not found")
+    merged = {**existing, **item, "id": id}
+    item_obj = License(**merged)
+    await db.licenses.update_one({"id": id}, {"$set": item_obj.model_dump()})
     return item_obj
 
 @api_router.delete("/licenses/{id}")

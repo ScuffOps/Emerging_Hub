@@ -34,15 +34,67 @@ export const deleteGalleryItem = async (id) => {
   return res.json();
 };
 
-export const fetchBrandAssets = async () => {
-  const res = await fetch(`${API_URL}/api/brand`);
+export const fetchBrandAssets = async (token) => {
+  const res = await fetch(`${API_URL}/api/brand`, { headers: { ...authHeaders(token) } });
   if (!res.ok) throw new Error('Failed to fetch brand assets');
   return res.json();
 };
 
-export const fetchLicenses = async () => {
-  const res = await fetch(`${API_URL}/api/licenses`);
+export const createBrandAsset = async (token, data) => {
+  const res = await fetch(`${API_URL}/api/brand`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Create asset failed');
+  return res.json();
+};
+export const updateBrandAsset = async (token, id, data) => {
+  const res = await fetch(`${API_URL}/api/brand/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Update asset failed');
+  return res.json();
+};
+export const deleteBrandAsset = async (token, id) => {
+  const res = await fetch(`${API_URL}/api/brand/${id}`, {
+    method: 'DELETE', headers: { ...authHeaders(token) },
+  });
+  if (!res.ok) throw new Error('Delete asset failed');
+  return res.json();
+};
+
+export const fetchLicenses = async (token) => {
+  const res = await fetch(`${API_URL}/api/licenses`, { headers: { ...authHeaders(token) } });
   if (!res.ok) throw new Error('Failed to fetch licenses');
+  return res.json();
+};
+
+export const createLicense = async (token, data) => {
+  const res = await fetch(`${API_URL}/api/licenses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Create license failed');
+  return res.json();
+};
+export const updateLicense = async (token, id, data) => {
+  const res = await fetch(`${API_URL}/api/licenses/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Update license failed');
+  return res.json();
+};
+export const deleteLicense = async (token, id) => {
+  const res = await fetch(`${API_URL}/api/licenses/${id}`, {
+    method: 'DELETE', headers: { ...authHeaders(token) },
+  });
+  if (!res.ok) throw new Error('Delete license failed');
   return res.json();
 };
 
