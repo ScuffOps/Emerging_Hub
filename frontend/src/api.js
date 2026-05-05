@@ -12,6 +12,16 @@ export const fetchCharacter = async () => {
   return res.json();
 };
 
+export const patchCharacter = async (token, data) => {
+  const res = await fetch(`${API_URL}/api/character`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Update profile failed');
+  return res.json();
+};
+
 export const fetchGallery = async (category = 'All', folder = '', token = null) => {
   let url = `${API_URL}/api/gallery?`;
   if (category && category !== 'All') url += `category=${encodeURIComponent(category)}&`;

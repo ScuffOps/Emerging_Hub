@@ -586,11 +586,30 @@ async def get_character():
     return char
 
 @api_router.put("/character", response_model=CharacterProfile)
-async def update_character(profile: dict):
-    # Upsert logic
+async def update_character(profile: dict, authorized: bool = Depends(verify_token)):
+    # Upsert logic (admin-only, full replace)
     profile_obj = CharacterProfile(**profile)
     await db.characters.replace_one({}, profile_obj.model_dump(), upsert=True)
     return profile_obj
+
+@api_router.patch("/character")
+async def patch_character(payload: dict, authorized: bool = Depends(verify_token)):
+    """Admin: partial update on the character profile. Only allowed fields are applied."""
+    allowed = {
+        "name", "avatar", "fullBody", "altBody", "tagline",
+        "themeSong", "themeSongTitle",
+        "colorPalette", "likes", "dislikes", "skills",
+        "designMotifs", "markings", "accessories",
+        "personality",
+    }
+    set_doc = {k: v for k, v in payload.items() if k in allowed}
+    if not set_doc:
+        raise HTTPException(status_code=400, detail="No allowed fields")
+    res = await db.characters.update_one({}, {"$set": set_doc})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Character not found — create it first via PUT")
+    doc = await db.characters.find_one({}, {"_id": 0})
+    return doc
 
 # Gallery
 @api_router.get("/gallery", response_model=list[GalleryItem])

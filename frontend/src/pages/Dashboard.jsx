@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Music, Heart, X, Sparkles, ScrollText, User, ChevronLeft, ChevronRight, Maximize2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Music, Heart, X, Sparkles, ScrollText, User, ChevronLeft, ChevronRight, Maximize2, ZoomIn, ZoomOut, RotateCcw, Edit3 } from 'lucide-react';
 import { useCharacter } from '../context/CharacterContext';
+import { useAuth } from '../context/AuthContext';
+import ProfileEditModal from '../components/ProfileEditModal';
 import '../styles/theme.css';
 
 // Lore parts — drop additional image URLs here as they are produced.
@@ -26,7 +28,9 @@ const Dashboard = () => {
   const [loreIndex, setLoreIndex] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const { character, loading } = useCharacter();
+  const [editOpen, setEditOpen] = useState(false);
+  const { character, loading, setCharacter } = useCharacter();
+  const { token, isAuthed } = useAuth();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -204,6 +208,17 @@ const Dashboard = () => {
           className={`grid grid-cols-1 md:grid-cols-4 gap-6 max-w-5xl auto-rows-min transition-all duration-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
           data-testid="profile-panel"
         >
+          {isAuthed && (
+            <div className="md:col-span-4 flex items-center justify-end -mb-2">
+              <button
+                onClick={() => setEditOpen(true)}
+                data-testid="profile-edit-btn"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[#B1EDE8] text-xs font-semibold hover:bg-white/10 hover:border-white/20 transition-all"
+              >
+                <Edit3 className="w-3.5 h-3.5" />Edit profile
+              </button>
+            </div>
+          )}
           {/* Color Palette Card - 2x1 */}
           <div className="md:col-span-2 md:row-span-1 glass-card p-8 rounded-[35px] h-full flex flex-col justify-center" data-testid="palette-card">
             <h3 className="text-xl font-bold mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>Color Palette</h3>
@@ -417,6 +432,18 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {editOpen && character && (
+        <ProfileEditModal
+          token={token}
+          character={character}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => {
+            setCharacter((c) => c ? { ...c, ...updated } : updated);
+            setEditOpen(false);
+          }}
+        />
       )}
     </div>
   );
