@@ -585,6 +585,85 @@ async def get_character():
         raise HTTPException(status_code=404, detail="Character not found")
     return char
 
+# ---------- Admin: one-shot seed for fresh production DBs ----------
+@api_router.post("/_diag/seed")
+async def diag_seed(force: bool = False, authorized: bool = Depends(verify_token)):
+    """Admin: idempotently seed a minimum-viable character if none exists.
+    Pass ?force=true to overwrite. Returns a summary of actions taken."""
+    actions = []
+    existing = await db.characters.find_one({}, {"_id": 0})
+    if existing and not force:
+        actions.append("character: already exists, skipped")
+    else:
+        from models import Color, Personality, Skill, Lore, Relationship, Pet, AltOutfit
+        char = CharacterProfile(
+            name="Veri",
+            avatar="https://customer-assets.emergentagent.com/job_a5642998-d1ff-4501-9f69-da4970bc345c/artifacts/76c60ckv_Tenko%20Head%20Doodle.png",
+            fullBody="https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/p47musk1_Viking%20Tongue%20FIN.png",
+            altBody="https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/6bjkr1br_Heavens%20trans%20UPDATED%20FINAL.png",
+            tagline="Digital Kitsune Spirit",
+            themeSong="",
+            themeSongTitle="Digital Dreams",
+            colorPalette=[
+                Color(name="Mint Cyan", hex="#B1EDE8"),
+                Color(name="Teal Blue", hex="#3086AE"),
+                Color(name="Dusty Purple", hex="#6D435A"),
+            ],
+            personality=Personality(traits=["Creative", "Playful", "Mysterious", "Artistic"], description="A mystical kitsune VTuber."),
+            likes=["Digital Art", "Fantasy Literature"],
+            dislikes=["Technical Difficulties", "Spam Comments"],
+            skills=[Skill(name="Live2D Rigging", level=90)],
+            lore=Lore(origin="The Aether", abilities=[], story="Forged in starlight."),
+            relationships=[],
+            designMotifs=["Fox/Kitsune imagery", "Digital glitch effects", "Aether constellations"],
+            markings=["Cross", "Crescent"],
+            accessories=[],
+            pets=[],
+            altOutfits=[],
+        )
+        await db.characters.replace_one({}, char.model_dump(), upsert=True)
+        actions.append(f"character: {'replaced' if existing else 'created'}")
+    return {"ok": True, "actions": actions}
+
+# ---------- Diagnostics (safe, no DB writes) ----------
+@api_router.get("/_diag/health")
+async def diag_health():
+    """Returns env presence + Mongo ping + collection counts. Safe to expose."""
+    info = {
+        "ok": True,
+        "env": {
+            "MONGO_URL_set": bool(os.environ.get("MONGO_URL")),
+            "DB_NAME": os.environ.get("DB_NAME"),
+            "CORS_ORIGINS": os.environ.get("CORS_ORIGINS", "*"),
+            "JWT_SECRET_set": bool(os.environ.get("JWT_SECRET")),
+            "DEBUT_PASSWORD_set": bool(os.environ.get("DEBUT_PASSWORD")),
+        },
+        "mongo": {},
+    }
+    try:
+        # ping the admin DB to confirm connectivity
+        ping = await client.admin.command("ping")
+        info["mongo"]["ping"] = ping.get("ok") == 1.0
+    except Exception as e:
+        info["ok"] = False
+        info["mongo"]["error"] = f"{type(e).__name__}: {str(e)[:300]}"
+        return info
+    try:
+        info["mongo"]["counts"] = {
+            "characters": await db.characters.count_documents({}),
+            "gallery": await db.gallery.count_documents({"is_deleted": {"$ne": True}}),
+            "design_elements": await db.design_elements.count_documents({"is_deleted": {"$ne": True}}),
+            "commissions": await db.commissions.count_documents({"is_deleted": {"$ne": True}}),
+            "brand_assets": await db.brand_assets.count_documents({"is_deleted": {"$ne": True}}),
+            "social_links": await db.social_links.count_documents({"is_deleted": {"$ne": True}}),
+            "fanart": await db.fanart.count_documents({"is_deleted": {"$ne": True}}),
+            "settings": await db.settings.count_documents({}),
+        }
+    except Exception as e:
+        info["ok"] = False
+        info["mongo"]["counts_error"] = f"{type(e).__name__}: {str(e)[:300]}"
+    return info
+
 @api_router.put("/character", response_model=CharacterProfile)
 async def update_character(profile: dict, authorized: bool = Depends(verify_token)):
     # Upsert logic (admin-only, full replace)
