@@ -60,16 +60,16 @@ const BrandAssetModal = ({ token, initial, onClose, onSaved, onDeleted }) => {
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
       <form onClick={(e) => e.stopPropagation()} onSubmit={submit}
-        className="glass-card rounded-[28px] w-full max-w-lg p-7 max-h-[92vh] overflow-y-auto custom-scrollbar"
+        className="glass-card rounded-[28px] w-full max-w-lg max-h-[92vh] flex flex-col"
         data-testid="brand-asset-modal">
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between px-7 pt-7 pb-4 shrink-0 border-b border-white/5">
           <h3 className="text-xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
             {isEdit ? 'Edit asset' : 'New brand asset'}
           </h3>
           <button type="button" onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#B1EDE8]"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="space-y-3">
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-7 py-5 space-y-3 min-h-0">
           <Field label="Title *">
             <input value={form.title} onChange={(e) => set({ title: e.target.value })} required autoFocus data-testid="ba-title"
               className="w-full px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#066DF7]" />
@@ -139,7 +139,7 @@ const BrandAssetModal = ({ token, initial, onClose, onSaved, onDeleted }) => {
           </Field>
         </div>
 
-        <div className="flex items-center justify-between gap-2 mt-6">
+        <div className="flex items-center justify-between gap-2 px-7 py-4 shrink-0 border-t border-white/5">
           {isEdit ? (
             <button type="button" onClick={handleDelete} data-testid="ba-delete"
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#600612]/20 border border-[#600612]/40 text-[#ff8095] text-xs hover:bg-[#600612]/30">

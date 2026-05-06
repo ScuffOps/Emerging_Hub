@@ -74,16 +74,16 @@ const ProfileEditModal = ({ token, character, onClose, onSaved }) => {
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
       <form onClick={(e) => e.stopPropagation()} onSubmit={submit}
-        className="glass-card rounded-[28px] w-full max-w-2xl p-7 max-h-[92vh] overflow-y-auto custom-scrollbar"
+        className="glass-card rounded-[28px] w-full max-w-2xl max-h-[92vh] flex flex-col"
         data-testid="profile-edit-modal">
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between px-7 pt-7 pb-4 shrink-0 border-b border-white/5">
           <h3 className="text-xl font-bold" style={{ fontFamily: 'Space Grotesk, sans-serif', color: '#E1DBC2' }}>
             Edit profile
           </h3>
           <button type="button" onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#B1EDE8]"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-7 py-5 space-y-6 min-h-0">
           <Section icon={<Music className="w-4 h-4 text-[#066DF7]" />} title="Theme song">
             <input value={form.themeSongTitle} onChange={(e) => set({ themeSongTitle: e.target.value })} data-testid="pf-theme"
               placeholder="e.g. Overture — Night Kin"
@@ -136,7 +136,7 @@ const ProfileEditModal = ({ token, character, onClose, onSaved }) => {
           </Section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 mt-7 pt-5 border-t border-white/5">
+        <div className="flex items-center justify-end gap-2 px-7 py-4 shrink-0 border-t border-white/5">
           <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-sm text-[#B1EDE8] hover:bg-white/10">Cancel</button>
           <button type="submit" disabled={saving} data-testid="pf-save"
             className="px-6 py-2.5 rounded-full bg-gradient-to-br from-[#066DF7] to-[#3086AE] text-white text-sm font-semibold shadow-[0_0_20px_rgba(6,109,247,0.35)] disabled:opacity-50">

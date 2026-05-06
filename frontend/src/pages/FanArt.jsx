@@ -78,9 +78,9 @@ const SubmitModal = ({ onClose, onSubmitted }) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
       <form onClick={(e) => e.stopPropagation()} onSubmit={submit}
-        className="glass-card rounded-[28px] w-full max-w-lg p-7 max-h-[92vh] overflow-y-auto custom-scrollbar"
+        className="glass-card rounded-[28px] w-full max-w-lg max-h-[92vh] flex flex-col"
         data-testid="fanart-submit-modal">
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between px-7 pt-7 pb-4 shrink-0 border-b border-white/5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-[#D477FF]/10 border border-[#D477FF]/30"><Heart className="w-5 h-5 text-[#D477FF]" /></div>
             <div>
@@ -91,7 +91,7 @@ const SubmitModal = ({ onClose, onSubmitted }) => {
           <button type="button" onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#B1EDE8]"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="space-y-3">
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-7 py-5 space-y-3 min-h-0">
           <ImagePicker
             label="Image"
             value={form.image_url}
@@ -118,7 +118,7 @@ const SubmitModal = ({ onClose, onSubmitted }) => {
           </Field>
         </div>
 
-        <div className="flex items-center justify-end gap-2 mt-6">
+        <div className="flex items-center justify-end gap-2 px-7 py-4 shrink-0 border-t border-white/5">
           <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-sm text-[#B1EDE8] hover:bg-white/10">Cancel</button>
           <button type="submit" disabled={saving} data-testid="fanart-submit-btn"
             className="px-6 py-2.5 rounded-full bg-gradient-to-br from-[#D477FF] to-[#066DF7] text-white text-sm font-semibold shadow-[0_0_20px_rgba(212,119,255,0.35)] disabled:opacity-50">
