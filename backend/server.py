@@ -1,74 +1,41 @@
-from fastapi import FastAPI, APIRouter
+import os
+import logging
+import re
+from pathlib import Path
+import uuid
+from datetime import datetime, timezone, timedelta
+import tempfile
+from typing import Optional
+import aiofiles
+import shutil
+import requests
+import jwt
+
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header, UploadFile, File, Form, Query, Response
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-import os
-import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
-import uuid
-from datetime import datetime, timezone
 
-
+# Load env variables
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
+# Setup models
+from models import (
+    CharacterProfile, GalleryItem, BrandAsset, License, DebutAsset, 
+    AuthRequest, AuthResponse, FileRecord, Commission
+)
+
+# --- Configuration & Setup ---
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
 app = FastAPI()
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class StatusCheckCreate(BaseModel):
-    client_name: str
-
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
-
-# Include the router in the main app
-app.include_router(api_router)
-
+# Add middleware
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -77,13 +44,1094 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# --- Object Storage Integration ---
+STORAGE_URL = os.environ.get('STORAGE_URL', "https://integrations.emergentagent.com/objstore/api/v1/storage")
+EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+APP_NAME = os.environ.get('APP_NAME', "veri-vtuber-portfolio")
+storage_key = None
+
+def init_storage():
+    global storage_key
+    if storage_key:
+        return storage_key
+    if not EMERGENT_KEY:
+        logger.error("EMERGENT_LLM_KEY is not set.")
+        return None
+    try:
+        resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
+        resp.raise_for_status()
+        storage_key = resp.json()["storage_key"]
+        return storage_key
+    except Exception as e:
+        logger.error(f"Failed to init storage: {e}")
+        return None
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = init_storage()
+    if not key:
+        raise Exception("Storage not initialized")
+    resp = requests.put(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key, "Content-Type": content_type},
+        data=data, timeout=120
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+def get_object(path: str) -> tuple[bytes, str]:
+    key = init_storage()
+    if not key:
+        raise Exception("Storage not initialized")
+    resp = requests.get(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key}, timeout=60
+    )
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+
+@app.on_event("startup")
+async def startup():
+    init_storage()
+
 @app.on_event("shutdown")
-async def shutdown_db_client():
+async def shutdown():
     client.close()
+
+# --- Auth setup ---
+JWT_SECRET = os.environ.get('JWT_SECRET', 'veri-secret-key-2024')
+DEBUT_PASSWORD = os.environ.get('DEBUT_PASSWORD', 'veri2024')
+ADMIN_EMAILS = [e.strip().lower() for e in (os.environ.get('ADMIN_EMAILS', '') or '').split(',') if e.strip()]
+EMERGENT_AUTH_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+
+def create_token(extra: dict | None = None):
+    payload = {"exp": datetime.now(timezone.utc) + timedelta(hours=24)}
+    if extra:
+        payload.update(extra)
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+
+def verify_token(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    token = authorization.split(" ")[1]
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return True
+
+
+async def _is_admin_email(email: str) -> bool:
+    """Email is admin if it's in env allowlist OR in DB admins collection,
+    OR (bootstrap) if no admin exists yet — the first signed-in email becomes admin."""
+    email_l = (email or "").lower()
+    if not email_l:
+        return False
+    if email_l in ADMIN_EMAILS:
+        return True
+    existing = await db.admins.find_one({"email": email_l, "is_deleted": {"$ne": True}}, {"_id": 0})
+    if existing:
+        return True
+    # Bootstrap: zero admins anywhere → first comer wins
+    if not ADMIN_EMAILS:
+        any_admin = await db.admins.count_documents({"is_deleted": {"$ne": True}})
+        if any_admin == 0:
+            await db.admins.insert_one({
+                "email": email_l,
+                "added_at": datetime.now(timezone.utc).isoformat(),
+                "bootstrap": True,
+                "is_deleted": False,
+            })
+            return True
+    return False
+
+
+# --- Routes ---
+@api_router.get("/")
+async def root():
+    return {"message": "API Running"}
+
+# Authentication
+@api_router.post("/auth/verify-debut", response_model=AuthResponse)
+async def verify_debut(auth: AuthRequest):
+    if auth.password == DEBUT_PASSWORD:
+        return AuthResponse(token=create_token())
+    raise HTTPException(status_code=401, detail="Invalid password")
+
+
+@api_router.post("/auth/google/session")
+async def auth_google_session(payload: dict):
+    """Exchange an Emergent Auth session_id for an admin JWT.
+
+    Body: { session_id: string }
+    """
+    session_id = (payload or {}).get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
+    try:
+        r = requests.get(
+            EMERGENT_AUTH_SESSION_URL,
+            headers={"X-Session-ID": session_id},
+            timeout=15,
+        )
+        r.raise_for_status()
+        data = r.json()
+    except requests.HTTPError:
+        raise HTTPException(status_code=401, detail="Invalid or expired session_id")
+    except Exception as e:
+        logger.error(f"Google auth lookup failed: {e}")
+        raise HTTPException(status_code=502, detail="Auth provider unreachable")
+
+    email = (data.get("email") or "").lower()
+    name = data.get("name") or email
+    picture = data.get("picture")
+
+    if not await _is_admin_email(email):
+        raise HTTPException(status_code=403, detail=f"{email} is not authorized as admin")
+
+    token = create_token({"email": email, "name": name})
+    return {
+        "token": token,
+        "user": {"email": email, "name": name, "picture": picture},
+    }
+
+
+@api_router.get("/auth/me")
+async def auth_me(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        decoded = jwt.decode(authorization.split(" ")[1], JWT_SECRET, algorithms=["HS256"])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return {
+        "email": decoded.get("email"),
+        "name": decoded.get("name"),
+        "is_password_session": "email" not in decoded,
+    }
+
+
+@api_router.get("/auth/admins")
+async def list_admins(authorized: bool = Depends(verify_token)):
+    rows = await db.admins.find({"is_deleted": {"$ne": True}}, {"_id": 0}).to_list(50)
+    return {"admins": rows, "env_allowlist": ADMIN_EMAILS}
+
+
+@api_router.post("/auth/admins")
+async def add_admin(payload: dict, authorized: bool = Depends(verify_token)):
+    email = (payload.get("email") or "").lower().strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email required")
+    existing = await db.admins.find_one({"email": email})
+    if existing:
+        await db.admins.update_one({"email": email}, {"$set": {"is_deleted": False}})
+    else:
+        await db.admins.insert_one({
+            "email": email,
+            "added_at": datetime.now(timezone.utc).isoformat(),
+            "is_deleted": False,
+        })
+    return {"status": "ok", "email": email}
+
+
+@api_router.delete("/auth/admins/{email}")
+async def remove_admin(email: str, authorized: bool = Depends(verify_token)):
+    await db.admins.update_one({"email": email.lower()}, {"$set": {"is_deleted": True}})
+    return {"status": "removed", "email": email.lower()}
+
+
+# ---------------- Design (interactive character ref board) ----------------
+@api_router.get("/design")
+async def list_design_elements():
+    """Public: returns all design elements + the canvas (body image) URL."""
+    rows = await db.design_elements.find(
+        {"is_deleted": {"$ne": True}}, {"_id": 0}
+    ).sort("display_order", 1).to_list(200)
+    char = await db.characters.find_one({}, {"_id": 0, "fullBody": 1, "avatar": 1, "name": 1})
+    return {
+        "elements": rows,
+        "canvas_url": (char or {}).get("fullBody"),
+        "character_name": (char or {}).get("name"),
+    }
+
+
+@api_router.put("/design/canvas")
+async def update_design_canvas(payload: dict, authorized: bool = Depends(verify_token)):
+    """Admin: update the character's fullBody image used as the Design page canvas."""
+    url = (payload.get("full_body_url") or payload.get("fullBody") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="full_body_url required")
+    res = await db.characters.update_one({}, {"$set": {"fullBody": url}})
+    if res.matched_count == 0:
+        # No character doc — create a minimal one so update sticks
+        await db.characters.insert_one({"id": str(uuid.uuid4()), "name": "Veri", "fullBody": url})
+    return {"status": "ok", "fullBody": url}
+
+
+# ---------------- Site Settings (sidebar bg, sidebar character override, etc.) ----------------
+SITE_SETTINGS_KEY = "site_settings"
+
+@api_router.get("/site-settings")
+async def get_site_settings():
+    """Public: returns sitewide visual overrides (background, sidebar character)."""
+    doc = await db.settings.find_one({"key": SITE_SETTINGS_KEY}, {"_id": 0, "key": 0}) or {}
+    return {
+        "background_url": doc.get("background_url"),
+        "sidebar_character_url": doc.get("sidebar_character_url"),
+    }
+
+
+@api_router.put("/site-settings")
+async def update_site_settings(payload: dict, authorized: bool = Depends(verify_token)):
+    """Admin: update sitewide visual overrides. Pass empty string to clear an override."""
+    set_doc = {}
+    for k in ("background_url", "sidebar_character_url"):
+        if k in payload:
+            v = payload[k]
+            set_doc[k] = (v or "").strip() or None
+    if not set_doc:
+        raise HTTPException(status_code=400, detail="No allowed fields in payload")
+    set_doc["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.settings.update_one({"key": SITE_SETTINGS_KEY}, {"$set": set_doc}, upsert=True)
+    return {"status": "ok", **{k: set_doc.get(k) for k in ("background_url", "sidebar_character_url") if k in set_doc}}
+
+
+@api_router.post("/design")
+async def create_design_element(payload: dict, authorized: bool = Depends(verify_token)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name": payload.get("name") or "Untitled element",
+        "category": payload.get("category") or "feature",  # tattoo|accessory|mark|motif|feature|outfit
+        "description": payload.get("description") or "",
+        "thumbnail": payload.get("thumbnail"),
+        "full_image": payload.get("full_image") or payload.get("thumbnail"),
+        "position_x": float(payload.get("position_x") or 50),  # percentage 0-100
+        "position_y": float(payload.get("position_y") or 50),
+        "display_order": int(payload.get("display_order") or 0),
+        "color": payload.get("color"),  # optional accent color
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "is_deleted": False,
+    }
+    await db.design_elements.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/design/reorder")
+async def reorder_design_elements(payload: dict, authorized: bool = Depends(verify_token)):
+    """Body: { ids: [orderedId1, orderedId2, ...] } → assigns display_order in that sequence.
+    Must be defined BEFORE /design/{element_id} so FastAPI matches it first."""
+    ids = payload.get("ids") or []
+    if not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="ids must be a list")
+    for idx, eid in enumerate(ids):
+        await db.design_elements.update_one({"id": eid}, {"$set": {"display_order": idx}})
+    return {"updated": len(ids)}
+
+
+@api_router.put("/design/{element_id}")
+async def update_design_element(element_id: str, payload: dict, authorized: bool = Depends(verify_token)):
+    set_doc = {k: v for k, v in payload.items() if k in {
+        "name", "category", "description", "thumbnail", "full_image",
+        "position_x", "position_y", "display_order", "color"
+    }}
+    if "position_x" in set_doc: set_doc["position_x"] = float(set_doc["position_x"])
+    if "position_y" in set_doc: set_doc["position_y"] = float(set_doc["position_y"])
+    if "display_order" in set_doc: set_doc["display_order"] = int(set_doc["display_order"])
+    set_doc["updated_at"] = datetime.now(timezone.utc).isoformat()
+    res = await db.design_elements.update_one({"id": element_id}, {"$set": set_doc})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Element not found")
+    doc = await db.design_elements.find_one({"id": element_id}, {"_id": 0})
+    return doc
+
+
+@api_router.delete("/design/{element_id}")
+async def delete_design_element(element_id: str, authorized: bool = Depends(verify_token)):
+    await db.design_elements.update_one({"id": element_id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+
+# ---------------- Fan Art Submissions ----------------
+@api_router.post("/fanart")
+async def submit_fanart(payload: dict):
+    """Public submission. status defaults to 'pending'."""
+    title = (payload.get("title") or "").strip()
+    image_url = (payload.get("image_url") or "").strip()
+    submitter_name = (payload.get("submitter_name") or "").strip()
+    if not title or not image_url or not submitter_name:
+        raise HTTPException(status_code=400, detail="title, image_url, submitter_name required")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "title": title[:120],
+        "image_url": image_url,
+        "submitter_name": submitter_name[:80],
+        "submitter_handle": (payload.get("submitter_handle") or "").strip()[:80],
+        "submitter_url": (payload.get("submitter_url") or "").strip()[:200],
+        "message": (payload.get("message") or "").strip()[:500],
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "reviewed_at": None,
+        "is_deleted": False,
+    }
+    await db.fanart.insert_one(doc)
+    doc.pop("_id", None)
+    return {"status": "submitted", "id": doc["id"]}
+
+
+@api_router.get("/fanart")
+async def list_fanart(authorization: str = Header(None), status: Optional[str] = Query("approved")):
+    """Public: only `approved`. Admin: pass status=pending|rejected|all to see others."""
+    is_admin = _optional_auth(authorization)
+    query = {"is_deleted": False}
+    if status and status != "all":
+        query["status"] = status
+    if not is_admin:
+        query["status"] = "approved"
+    rows = await db.fanart.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return {"items": rows, "count": len(rows)}
+
+
+@api_router.patch("/fanart/{item_id}")
+async def review_fanart(item_id: str, payload: dict, authorized: bool = Depends(verify_token)):
+    new_status = payload.get("status")
+    if new_status not in {"approved", "rejected", "pending"}:
+        raise HTTPException(status_code=400, detail="status must be approved|rejected|pending")
+    res = await db.fanart.update_one(
+        {"id": item_id},
+        {"$set": {"status": new_status, "reviewed_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    return {"status": "ok", "new_status": new_status}
+
+
+@api_router.delete("/fanart/{item_id}")
+async def delete_fanart(item_id: str, authorized: bool = Depends(verify_token)):
+    await db.fanart.update_one({"id": item_id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+
+# ---------------- Social Links (public list, admin CRUD) ----------------
+@api_router.get("/links")
+async def list_links(authorization: str = Header(None)):
+    """Public: returns visible links sorted by display_order. Admin: returns all."""
+    is_admin = _optional_auth(authorization)
+    query = {"is_deleted": {"$ne": True}}
+    if not is_admin:
+        query["is_visible"] = {"$ne": False}
+    rows = await db.social_links.find(query, {"_id": 0}).sort("display_order", 1).to_list(200)
+    return {"items": rows, "count": len(rows)}
+
+
+@api_router.post("/links")
+async def create_link(payload: dict, authorized: bool = Depends(verify_token)):
+    label = (payload.get("label") or "").strip()
+    url = (payload.get("url") or "").strip()
+    if not label or not url:
+        raise HTTPException(status_code=400, detail="label and url required")
+    # Highest display_order + 1
+    last = await db.social_links.find_one({"is_deleted": {"$ne": True}}, sort=[("display_order", -1)])
+    next_order = (last.get("display_order", 0) + 1) if last else 0
+    doc = {
+        "id": str(uuid.uuid4()),
+        "label": label[:60],
+        "url": url[:500],
+        "platform": (payload.get("platform") or "").strip()[:40],
+        "icon": (payload.get("icon") or "").strip()[:40],
+        "color": (payload.get("color") or "").strip()[:24],
+        "description": (payload.get("description") or "").strip()[:200],
+        "is_visible": payload.get("is_visible", True),
+        "display_order": int(payload.get("display_order", next_order)),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "is_deleted": False,
+    }
+    await db.social_links.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/links/reorder")
+async def reorder_links(payload: dict, authorized: bool = Depends(verify_token)):
+    ids = payload.get("ids") or []
+    if not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="ids must be a list")
+    for idx, lid in enumerate(ids):
+        await db.social_links.update_one({"id": lid}, {"$set": {"display_order": idx}})
+    return {"updated": len(ids)}
+
+
+@api_router.put("/links/{link_id}")
+async def update_link(link_id: str, payload: dict, authorized: bool = Depends(verify_token)):
+    allowed = {"label", "url", "platform", "icon", "color", "description", "is_visible", "display_order"}
+    set_doc = {k: v for k, v in payload.items() if k in allowed}
+    if not set_doc:
+        raise HTTPException(status_code=400, detail="No allowed fields")
+    if "display_order" in set_doc: set_doc["display_order"] = int(set_doc["display_order"])
+    set_doc["updated_at"] = datetime.now(timezone.utc).isoformat()
+    res = await db.social_links.update_one({"id": link_id}, {"$set": set_doc})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Link not found")
+    doc = await db.social_links.find_one({"id": link_id}, {"_id": 0})
+    return doc
+
+
+@api_router.delete("/links/{link_id}")
+async def delete_link(link_id: str, authorized: bool = Depends(verify_token)):
+    await db.social_links.update_one({"id": link_id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+
+# ---------------- Merch (Fourthwall) ----------------
+FOURTHWALL_API_KEY = os.environ.get("FOURTHWALL_API_KEY")
+FOURTHWALL_BASES = [
+    ("https://storefront-api.fourthwall.com/v1/collections/all/products", "storefront_token"),
+    ("https://api.fourthwall.com/v1/products", "bearer"),
+]
+_merch_cache = {"data": None, "expires_at": 0}
+_shop_cache = {"public_domain": None, "expires_at": 0}
+
+
+def _fetch_fourthwall_shop():
+    import time
+    now = time.time()
+    if _shop_cache["public_domain"] and _shop_cache["expires_at"] > now:
+        return _shop_cache["public_domain"]
+    try:
+        r = requests.get(
+            "https://storefront-api.fourthwall.com/v1/shop",
+            params={"storefront_token": FOURTHWALL_API_KEY},
+            headers={"User-Agent": "Mozilla/5.0 VeriVT-Site/1.0", "Accept": "application/json"},
+            timeout=10,
+        )
+        if r.status_code == 200:
+            domain = r.json().get("publicDomain")
+            _shop_cache["public_domain"] = domain
+            _shop_cache["expires_at"] = now + 3600
+            return domain
+    except Exception as e:
+        logger.warning(f"Fourthwall shop lookup failed: {e}")
+    return None
+
+
+
+@api_router.get("/merch")
+async def get_merch():
+    """Public proxy for Fourthwall storefront. Caches for 5 minutes."""
+    import time
+    now = time.time()
+    if _merch_cache["data"] and _merch_cache["expires_at"] > now:
+        return _merch_cache["data"]
+    if not FOURTHWALL_API_KEY:
+        return {"products": [], "error": "FOURTHWALL_API_KEY not configured"}
+    shop_domain = _fetch_fourthwall_shop()
+    last_err = None
+    headers_common = {"User-Agent": "Mozilla/5.0 VeriVT-Site/1.0", "Accept": "application/json"}
+    for url, auth_type in FOURTHWALL_BASES:
+        try:
+            if auth_type == "storefront_token":
+                r = requests.get(url, params={"storefront_token": FOURTHWALL_API_KEY, "size": 100}, headers=headers_common, timeout=15)
+            else:
+                r = requests.get(url, headers={**headers_common, "Authorization": f"Bearer {FOURTHWALL_API_KEY}"}, params={"limit": 100}, timeout=15)
+            if r.status_code != 200:
+                last_err = f"{url} → {r.status_code}: {r.text[:200]}"
+                continue
+            raw = r.json()
+            if isinstance(raw, list):
+                results = raw
+            else:
+                results = raw.get("results") or raw.get("products") or raw.get("items") or []
+            products = []
+            for p in results if isinstance(results, list) else []:
+                variants = p.get("variants") or []
+                first_v = variants[0] if variants else {}
+                price_obj = (first_v.get("unitPrice") or p.get("unitPrice") or p.get("price") or {})
+                images = p.get("images") or first_v.get("images") or []
+                if isinstance(images, list) and images:
+                    first_img = images[0]
+                    img = first_img.get("url") if isinstance(first_img, dict) else first_img
+                else:
+                    img = None
+                products.append({
+                    "id": p.get("id") or p.get("slug"),
+                    "name": p.get("name") or p.get("title"),
+                    "slug": p.get("slug"),
+                    "description": p.get("description"),
+                    "price": (price_obj.get("value") if isinstance(price_obj, dict) else price_obj),
+                    "currency": (price_obj.get("currency") if isinstance(price_obj, dict) else "USD"),
+                    "image": img,
+                    "url": p.get("url") or (f"https://{shop_domain}/products/{p.get('slug')}" if (shop_domain and p.get('slug')) else None),
+                })
+            payload = {"products": products, "count": len(products), "shop_url": f"https://{shop_domain}" if shop_domain else None}
+            _merch_cache["data"] = payload
+            _merch_cache["expires_at"] = now + 300
+            return payload
+        except Exception as e:
+            last_err = str(e)
+            continue
+    return {"products": [], "error": f"Fourthwall fetch failed: {last_err}"}
+
+
+
+
+# Character Profile
+@api_router.get("/character", response_model=CharacterProfile)
+async def get_character():
+    char = await db.characters.find_one({}, {"_id": 0})
+    if not char:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return char
+
+# ---------- Admin: one-shot seed for fresh production DBs ----------
+@api_router.post("/_diag/seed")
+async def diag_seed(force: bool = False, authorized: bool = Depends(verify_token)):
+    """Admin: idempotently seed a minimum-viable character if none exists.
+    Pass ?force=true to overwrite. Returns a summary of actions taken."""
+    actions = []
+    existing = await db.characters.find_one({}, {"_id": 0})
+    if existing and not force:
+        actions.append("character: already exists, skipped")
+    else:
+        from models import Color, Personality, Skill, Lore, Relationship, Pet, AltOutfit
+        char = CharacterProfile(
+            name="Veri",
+            avatar="https://customer-assets.emergentagent.com/job_a5642998-d1ff-4501-9f69-da4970bc345c/artifacts/76c60ckv_Tenko%20Head%20Doodle.png",
+            fullBody="https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/p47musk1_Viking%20Tongue%20FIN.png",
+            altBody="https://customer-assets.emergentagent.com/job_74cdb3f5-3328-4f1c-b1f3-effa4135bdfd/artifacts/6bjkr1br_Heavens%20trans%20UPDATED%20FINAL.png",
+            tagline="Digital Kitsune Spirit",
+            themeSong="",
+            themeSongTitle="Digital Dreams",
+            colorPalette=[
+                Color(name="Mint Cyan", hex="#B1EDE8"),
+                Color(name="Teal Blue", hex="#3086AE"),
+                Color(name="Dusty Purple", hex="#6D435A"),
+            ],
+            personality=Personality(traits=["Creative", "Playful", "Mysterious", "Artistic"], description="A mystical kitsune VTuber."),
+            likes=["Digital Art", "Fantasy Literature"],
+            dislikes=["Technical Difficulties", "Spam Comments"],
+            skills=[Skill(name="Live2D Rigging", level=90)],
+            lore=Lore(origin="The Aether", abilities=[], story="Forged in starlight."),
+            relationships=[],
+            designMotifs=["Fox/Kitsune imagery", "Digital glitch effects", "Aether constellations"],
+            markings=["Cross", "Crescent"],
+            accessories=[],
+            pets=[],
+            altOutfits=[],
+        )
+        await db.characters.replace_one({}, char.model_dump(), upsert=True)
+        actions.append(f"character: {'replaced' if existing else 'created'}")
+    return {"ok": True, "actions": actions}
+
+# ---------- Diagnostics (safe, no DB writes) ----------
+@api_router.get("/_diag/health")
+async def diag_health():
+    """Returns env presence + Mongo ping + collection counts. Safe to expose."""
+    info = {
+        "ok": True,
+        "env": {
+            "MONGO_URL_set": bool(os.environ.get("MONGO_URL")),
+            "DB_NAME": os.environ.get("DB_NAME"),
+            "CORS_ORIGINS": os.environ.get("CORS_ORIGINS", "*"),
+            "JWT_SECRET_set": bool(os.environ.get("JWT_SECRET")),
+            "DEBUT_PASSWORD_set": bool(os.environ.get("DEBUT_PASSWORD")),
+        },
+        "mongo": {},
+    }
+    try:
+        # ping the admin DB to confirm connectivity
+        ping = await client.admin.command("ping")
+        info["mongo"]["ping"] = ping.get("ok") == 1.0
+    except Exception as e:
+        info["ok"] = False
+        info["mongo"]["error"] = f"{type(e).__name__}: {str(e)[:300]}"
+        return info
+    try:
+        info["mongo"]["counts"] = {
+            "characters": await db.characters.count_documents({}),
+            "gallery": await db.gallery.count_documents({"is_deleted": {"$ne": True}}),
+            "design_elements": await db.design_elements.count_documents({"is_deleted": {"$ne": True}}),
+            "commissions": await db.commissions.count_documents({"is_deleted": {"$ne": True}}),
+            "brand_assets": await db.brand_assets.count_documents({"is_deleted": {"$ne": True}}),
+            "social_links": await db.social_links.count_documents({"is_deleted": {"$ne": True}}),
+            "fanart": await db.fanart.count_documents({"is_deleted": {"$ne": True}}),
+            "settings": await db.settings.count_documents({}),
+        }
+    except Exception as e:
+        info["ok"] = False
+        info["mongo"]["counts_error"] = f"{type(e).__name__}: {str(e)[:300]}"
+    return info
+
+@api_router.put("/character", response_model=CharacterProfile)
+async def update_character(profile: dict, authorized: bool = Depends(verify_token)):
+    # Upsert logic (admin-only, full replace)
+    profile_obj = CharacterProfile(**profile)
+    await db.characters.replace_one({}, profile_obj.model_dump(), upsert=True)
+    return profile_obj
+
+@api_router.patch("/character")
+async def patch_character(payload: dict, authorized: bool = Depends(verify_token)):
+    """Admin: partial update on the character profile. Only allowed fields are applied."""
+    allowed = {
+        "name", "avatar", "fullBody", "altBody", "tagline",
+        "themeSong", "themeSongTitle",
+        "colorPalette", "likes", "dislikes", "skills",
+        "designMotifs", "markings", "accessories",
+        "personality",
+    }
+    set_doc = {k: v for k, v in payload.items() if k in allowed}
+    if not set_doc:
+        raise HTTPException(status_code=400, detail="No allowed fields")
+    res = await db.characters.update_one({}, {"$set": set_doc})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Character not found — create it first via PUT")
+    doc = await db.characters.find_one({}, {"_id": 0})
+    return doc
+
+# Gallery
+@api_router.get("/gallery", response_model=list[GalleryItem])
+async def get_gallery(category: str = None, folder: str = None, limit: int = 100, skip: int = 0, authorization: str = Header(None)):
+    is_admin = _optional_auth(authorization)
+    query = {"is_deleted": False}
+    if not is_admin:
+        # Hide private items from public viewers (treat missing field as public for legacy items)
+        query["$or"] = [{"visibility": {"$ne": "private"}}, {"visibility": {"$exists": False}}]
+    if category and category != "All":
+        query["category"] = category
+    if folder:
+        query["folder"] = folder
+    return await db.gallery.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+
+@api_router.post("/gallery", response_model=GalleryItem)
+async def create_gallery_item(item: dict):
+    item_obj = GalleryItem(**item)
+    await db.gallery.insert_one(item_obj.model_dump())
+    return item_obj
+
+@api_router.put("/gallery/{id}", response_model=GalleryItem)
+async def update_gallery_item(id: str, item: dict):
+    item_obj = GalleryItem(**item)
+    item_obj.id = id # Preserve ID
+    res = await db.gallery.replace_one({"id": id}, item_obj.model_dump())
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return item_obj
+
+@api_router.delete("/gallery/{id}")
+async def delete_gallery_item(id: str):
+    await db.gallery.update_one({"id": id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+# Brand Assets — admin only
+@api_router.get("/brand", response_model=list[BrandAsset])
+async def get_brand_assets(limit: int = 100, skip: int = 0, authorized: bool = Depends(verify_token)):
+    return await db.brand_assets.find({"is_deleted": False}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+
+@api_router.post("/brand", response_model=BrandAsset)
+async def create_brand_asset(item: dict, authorized: bool = Depends(verify_token)):
+    item_obj = BrandAsset(**item)
+    await db.brand_assets.insert_one(item_obj.model_dump())
+    return item_obj
+
+@api_router.put("/brand/{id}", response_model=BrandAsset)
+async def update_brand_asset(id: str, item: dict, authorized: bool = Depends(verify_token)):
+    existing = await db.brand_assets.find_one({"id": id, "is_deleted": False}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    merged = {**existing, **item, "id": id}
+    item_obj = BrandAsset(**merged)
+    await db.brand_assets.update_one({"id": id}, {"$set": item_obj.model_dump()})
+    return item_obj
+
+@api_router.delete("/brand/{id}")
+async def delete_brand_asset(id: str, authorized: bool = Depends(verify_token)):
+    await db.brand_assets.update_one({"id": id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+# Licenses — admin only
+@api_router.get("/licenses", response_model=list[License])
+async def get_licenses(limit: int = 100, skip: int = 0, authorized: bool = Depends(verify_token)):
+    return await db.licenses.find({"is_deleted": False}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+
+@api_router.post("/licenses", response_model=License)
+async def create_license(item: dict, authorized: bool = Depends(verify_token)):
+    item_obj = License(**item)
+    await db.licenses.insert_one(item_obj.model_dump())
+    return item_obj
+
+@api_router.put("/licenses/{id}", response_model=License)
+async def update_license(id: str, item: dict, authorized: bool = Depends(verify_token)):
+    existing = await db.licenses.find_one({"id": id, "is_deleted": False}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="License not found")
+    merged = {**existing, **item, "id": id}
+    item_obj = License(**merged)
+    await db.licenses.update_one({"id": id}, {"$set": item_obj.model_dump()})
+    return item_obj
+
+@api_router.delete("/licenses/{id}")
+async def delete_license(id: str, authorized: bool = Depends(verify_token)):
+    await db.licenses.update_one({"id": id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+# Commissions
+def _optional_auth(authorization: str = Header(None)) -> bool:
+    """Returns True if a valid Bearer token is present, False otherwise. Never raises."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return False
+    token = authorization.split(" ", 1)[1]
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return True
+    except Exception:
+        return False
+
+
+def _derive_payment_status(budget: float, payments: list) -> str:
+    total = sum((p.get("amount") or 0) for p in payments) if payments else 0
+    if budget <= 0 and total <= 0:
+        return "unpaid"
+    if total <= 0:
+        return "unpaid"
+    if total >= budget:
+        return "paid"
+    return "partial"
+
+
+@api_router.get("/commissions", response_model=list[Commission])
+async def list_commissions(
+    authorized: bool = Depends(verify_token),
+    status: Optional[str] = Query(None),
+    platform: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+    artist: Optional[str] = Query(None),
+    usage_rights: Optional[str] = Query(None),
+    visibility: Optional[str] = Query(None),
+    price_min: Optional[float] = Query(None),
+    price_max: Optional[float] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    limit: int = 200,
+    skip: int = 0,
+):
+    query = {"is_deleted": False}
+    if visibility:
+        query["visibility"] = visibility
+
+    if status:
+        query["status"] = status
+    if platform:
+        query["platform"] = platform
+    if type:
+        query["type"] = type
+    if artist:
+        query["artist.name"] = {"$regex": artist, "$options": "i"}
+    if usage_rights:
+        query["usage_rights"] = usage_rights
+    if price_min is not None or price_max is not None:
+        rng = {}
+        if price_min is not None:
+            rng["$gte"] = price_min
+        if price_max is not None:
+            rng["$lte"] = price_max
+        query["budget"] = rng
+    if date_from or date_to:
+        rng = {}
+        if date_from:
+            rng["$gte"] = date_from
+        if date_to:
+            rng["$lte"] = date_to
+        query["deadline"] = rng
+
+    return await db.commissions.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+
+
+@api_router.put("/commissions/bulk-rename-artist")
+async def bulk_rename_artist(payload: dict, authorized: bool = Depends(verify_token)):
+    """Bulk-update all commissions whose artist.name matches `from_name`.
+
+    Body: { from_name, to_name, twitter?, vgen?, discord?, portfolio? }
+    Empty/missing handle fields are ignored (existing values preserved per-commission).
+    """
+    from_name = (payload.get("from_name") or "").strip()
+    to_name = (payload.get("to_name") or "").strip()
+    if not from_name or not to_name:
+        raise HTTPException(status_code=400, detail="from_name and to_name are required")
+
+    set_doc = {
+        "artist.name": to_name,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    for field in ("twitter", "vgen", "discord", "portfolio"):
+        val = payload.get(field)
+        if val:
+            set_doc[f"artist.{field}"] = val
+
+    res = await db.commissions.update_many(
+        {"artist.name": from_name, "is_deleted": False},
+        {"$set": set_doc},
+    )
+    return {"matched": res.matched_count, "modified": res.modified_count}
+
+
+
+@api_router.post("/commissions", response_model=Commission)
+async def create_commission(item: dict, authorized: bool = Depends(verify_token)):
+    payments = item.get("payments") or []
+    if "payment_status" not in item or not item.get("payment_status"):
+        item["payment_status"] = _derive_payment_status(item.get("budget", 0), payments)
+    obj = Commission(**item)
+    await db.commissions.insert_one(obj.model_dump())
+    return obj
+
+
+@api_router.put("/commissions/{item_id}", response_model=Commission)
+async def update_commission(item_id: str, item: dict, authorized: bool = Depends(verify_token)):
+    payments = item.get("payments") or []
+    if "payment_status" not in item or not item.get("payment_status"):
+        item["payment_status"] = _derive_payment_status(item.get("budget", 0), payments)
+    obj = Commission(**item)
+    obj.id = item_id
+    obj.updated_at = datetime.now(timezone.utc).isoformat()
+    res = await db.commissions.replace_one({"id": item_id}, obj.model_dump())
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Commission not found")
+    return obj
+
+
+@api_router.delete("/commissions/{item_id}")
+async def delete_commission(item_id: str, authorized: bool = Depends(verify_token)):
+    await db.commissions.update_one({"id": item_id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+
+@api_router.get("/commissions/stats")
+async def commissions_stats(authorized: bool = Depends(verify_token)):
+    query = {"is_deleted": False}
+    items = await db.commissions.find(
+        query,
+        {"_id": 0, "budget": 1, "payments": 1, "status": 1},
+    ).to_list(1000)
+    total_budget = sum((i.get("budget") or 0) for i in items)
+    paid_total = 0
+    for i in items:
+        paid_total += sum((p.get("amount") or 0) for p in (i.get("payments") or []))
+    status_counts = {}
+    for i in items:
+        s = i.get("status") or "Unknown"
+        status_counts[s] = status_counts.get(s, 0) + 1
+    return {
+        "count": len(items),
+        "total_budget": round(total_budget, 2),
+        "total_paid": round(paid_total, 2),
+        "total_outstanding": round(max(total_budget - paid_total, 0), 2),
+        "by_status": status_counts,
+    }
+
+
+@api_router.get("/credits")
+async def get_credits():
+    """Public: aggregate Completed + public-visibility commissions by artist."""
+    cursor = db.commissions.find(
+        {"is_deleted": False, "status": "Completed", "visibility": "public"},
+        {"_id": 0, "id": 1, "artist": 1, "title": 1, "type": 1, "platform": 1,
+         "finished_date": 1, "final_urls": 1, "reference_urls": 1},
+    ).sort("finished_date", -1)
+    items = await cursor.to_list(1000)
+
+    by_artist = {}
+    for c in items:
+        artist = c.get("artist") or {}
+        name = (artist.get("name") or "").strip()
+        if not name:
+            continue
+        key = name.lower()
+        entry = by_artist.setdefault(key, {
+            "name": name,
+            "discord": artist.get("discord"),
+            "twitter": artist.get("twitter"),
+            "vgen": artist.get("vgen"),
+            "portfolio": artist.get("portfolio"),
+            "pieces": [],
+            "avatar_url": None,
+        })
+        thumb = None
+        if c.get("final_urls"):
+            thumb = c["final_urls"][0]
+        elif c.get("reference_urls"):
+            thumb = c["reference_urls"][0]
+        piece = {
+            "id": c.get("id"),
+            "title": c.get("title") or "Untitled",
+            "type": c.get("type"),
+            "platform": c.get("platform"),
+            "finished_date": c.get("finished_date"),
+            "thumbnail": thumb,
+        }
+        entry["pieces"].append(piece)
+        if not entry["avatar_url"] and thumb:
+            entry["avatar_url"] = thumb
+        # prefer most complete contact fields if multiple commissions
+        for k in ("discord", "twitter", "vgen", "portfolio"):
+            if not entry.get(k) and artist.get(k):
+                entry[k] = artist.get(k)
+
+    result = sorted(by_artist.values(), key=lambda a: len(a["pieces"]), reverse=True)
+    for a in result:
+        a["slug"] = _slugify(a["name"])
+    return {"artists": result, "total_artists": len(result), "total_pieces": len(items)}
+
+
+def _slugify(name: str) -> str:
+    s = (name or "").lower().strip()
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+    return s.strip("-") or "artist"
+
+
+@api_router.get("/credits/{slug}")
+async def get_credit_artist(slug: str):
+    """Per-artist public deep-link page."""
+    cursor = db.commissions.find(
+        {"is_deleted": False, "status": "Completed", "visibility": "public"},
+        {"_id": 0, "id": 1, "artist": 1, "title": 1, "type": 1, "platform": 1,
+         "finished_date": 1, "final_urls": 1, "reference_urls": 1, "description": 1},
+    ).sort("finished_date", -1)
+    items = await cursor.to_list(1000)
+
+    matching = [c for c in items if _slugify((c.get("artist") or {}).get("name") or "") == slug]
+    if not matching:
+        raise HTTPException(status_code=404, detail="Artist not found")
+
+    artist = (matching[0].get("artist") or {})
+    # collapse to most-complete handle set
+    handles = {"discord": None, "twitter": None, "vgen": None, "portfolio": None}
+    for c in matching:
+        a = c.get("artist") or {}
+        for k in handles:
+            if not handles[k] and a.get(k):
+                handles[k] = a[k]
+
+    pieces = []
+    for c in matching:
+        thumb = (c.get("final_urls") or [None])[0] or (c.get("reference_urls") or [None])[0]
+        pieces.append({
+            "id": c.get("id"),
+            "title": c.get("title"),
+            "type": c.get("type"),
+            "platform": c.get("platform"),
+            "finished_date": c.get("finished_date"),
+            "thumbnail": thumb,
+            "image": (c.get("final_urls") or [None])[0] or (c.get("reference_urls") or [None])[0],
+            "description": c.get("description"),
+        })
+
+    avatar_url = next((p["thumbnail"] for p in pieces if p["thumbnail"]), None)
+    return {
+        "name": artist.get("name") or "Unknown Artist",
+        "slug": slug,
+        **handles,
+        "pieces": pieces,
+        "avatar_url": avatar_url,
+        "count": len(pieces),
+    }
+
+
+
+# Debut Assets
+@api_router.get("/debut", response_model=list[DebutAsset])
+async def get_debut_assets(authorized: bool = Depends(verify_token), limit: int = 100, skip: int = 0):
+    return await db.debut_assets.find({"is_deleted": False}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+
+@api_router.post("/debut", response_model=DebutAsset)
+async def create_debut_asset(item: dict, authorized: bool = Depends(verify_token)):
+    item_obj = DebutAsset(**item)
+    await db.debut_assets.insert_one(item_obj.model_dump())
+    return item_obj
+
+@api_router.delete("/debut/{id}")
+async def delete_debut_asset(id: str, authorized: bool = Depends(verify_token)):
+    await db.debut_assets.update_one({"id": id}, {"$set": {"is_deleted": True}})
+    return {"status": "deleted"}
+
+# --- Chunked File Uploads ---
+UPLOAD_DIR = Path("/tmp/uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+@api_router.post("/upload/init")
+async def upload_init(filename: str = Form(...), content_type: str = Form(...)):
+    upload_id = str(uuid.uuid4())
+    upload_path = UPLOAD_DIR / upload_id
+    upload_path.mkdir(exist_ok=True)
+    return {"upload_id": upload_id}
+
+@api_router.post("/upload/{upload_id}/chunk")
+async def upload_chunk(upload_id: str, chunk_index: int = Form(...), file: UploadFile = File(...)):
+    upload_path = UPLOAD_DIR / upload_id
+    if not upload_path.exists():
+        raise HTTPException(status_code=404, detail="Upload session not found")
+        
+    chunk_path = upload_path / f"chunk_{chunk_index:04d}"
+    async with aiofiles.open(chunk_path, 'wb') as out_file:
+        content = await file.read()
+        await out_file.write(content)
+    return {"status": "success"}
+
+@api_router.post("/upload/{upload_id}/complete")
+async def upload_complete(upload_id: str, filename: str = Form(...), content_type: str = Form(...)):
+    upload_path = UPLOAD_DIR / upload_id
+    if not upload_path.exists():
+        raise HTTPException(status_code=404, detail="Upload session not found")
+        
+    chunks = sorted(upload_path.iterdir())
+    if not chunks:
+        raise HTTPException(status_code=400, detail="No chunks found")
+        
+    stitched_path = UPLOAD_DIR / f"{upload_id}_stitched"
+    size = 0
+    with open(stitched_path, 'wb') as outfile:
+        for chunk in chunks:
+            with open(chunk, 'rb') as infile:
+                data = infile.read()
+                outfile.write(data)
+                size += len(data)
+                
+    try:
+        with open(stitched_path, 'rb') as f:
+            full_data = f.read()
+            
+        ext = filename.split(".")[-1] if "." in filename else "bin"
+        path = f"{APP_NAME}/{uuid.uuid4()}.{ext}"
+        
+        result = put_object(path, full_data, content_type or "application/octet-stream")
+        
+        file_record = FileRecord(
+            storage_path=result["path"],
+            original_filename=filename,
+            content_type=content_type,
+            size=result["size"]
+        )
+        await db.files.insert_one(file_record.model_dump())
+        
+        return {"id": file_record.id, "url": f"/api/files/{result['path']}"}
+        
+    finally:
+        shutil.rmtree(upload_path, ignore_errors=True)
+        if stitched_path.exists():
+            stitched_path.unlink()
+
+@api_router.get("/files/{path:path}")
+async def download_file(path: str):
+    record = await db.files.find_one({"storage_path": path, "is_deleted": False})
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    try:
+        data, content_type = get_object(path)
+        return Response(content=data, media_type=record.get("content_type", content_type))
+    except Exception as e:
+        logger.error(f"Failed to fetch file: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving file from storage")
+
+app.include_router(api_router)
