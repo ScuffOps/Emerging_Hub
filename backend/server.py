@@ -588,9 +588,11 @@ async def get_character():
 # ---------- Admin: one-shot seed for fresh production DBs ----------
 @api_router.post("/_diag/seed")
 async def diag_seed(force: bool = False, authorized: bool = Depends(verify_token)):
-    """Admin: idempotently seed a minimum-viable character if none exists.
-    Pass ?force=true to overwrite. Returns a summary of actions taken."""
+    """Admin: idempotently seed baseline content (character + design elements + social links).
+    Pass ?force=true to overwrite the character. Other collections are always additive-safe."""
     actions = []
+
+    # ---- character ----
     existing = await db.characters.find_one({}, {"_id": 0})
     if existing and not force:
         actions.append("character: already exists, skipped")
@@ -612,7 +614,7 @@ async def diag_seed(force: bool = False, authorized: bool = Depends(verify_token
             personality=Personality(traits=["Creative", "Playful", "Mysterious", "Artistic"], description="A mystical kitsune VTuber."),
             likes=["Digital Art", "Fantasy Literature"],
             dislikes=["Technical Difficulties", "Spam Comments"],
-            skills=[Skill(name="Live2D Rigging", level=90)],
+            skills=[Skill(name="Live2D Rigging", level=90), Skill(name="Streaming", level=85)],
             lore=Lore(origin="The Aether", abilities=[], story="Forged in starlight."),
             relationships=[],
             designMotifs=["Fox/Kitsune imagery", "Digital glitch effects", "Aether constellations"],
@@ -623,6 +625,52 @@ async def diag_seed(force: bool = False, authorized: bool = Depends(verify_token
         )
         await db.characters.replace_one({}, char.model_dump(), upsert=True)
         actions.append(f"character: {'replaced' if existing else 'created'}")
+
+    # ---- design elements (only if none exist) ----
+    design_count = await db.design_elements.count_documents({"is_deleted": {"$ne": True}})
+    if design_count == 0:
+        starter = [
+            {"name": "Ears", "category": "feature", "description": "Fox ears — twitch with emotion.", "position_x": 50, "position_y": 8},
+            {"name": "Eye Jewel", "category": "mark", "description": "A blessing embedded during her fall from grace.", "position_x": 49, "position_y": 16},
+            {"name": "Tail", "category": "feature", "description": "Nine-tailed silhouette in ethereal form.", "position_x": 68, "position_y": 62},
+        ]
+        for i, s in enumerate(starter):
+            await db.design_elements.insert_one({
+                "id": str(uuid.uuid4()),
+                "thumbnail": "",
+                "full_image": "",
+                "color": "",
+                "display_order": i,
+                "is_deleted": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                **s,
+            })
+        actions.append(f"design_elements: created {len(starter)} starters")
+    else:
+        actions.append(f"design_elements: {design_count} already exist, skipped")
+
+    # ---- social links (only if none exist) ----
+    links_count = await db.social_links.count_documents({"is_deleted": {"$ne": True}})
+    if links_count == 0:
+        starters = [
+            {"label": "Watch me on Twitch", "url": "https://twitch.tv/veri", "platform": "twitch", "color": "#9146FF"},
+            {"label": "Follow on X", "url": "https://x.com/veri", "platform": "twitter", "color": "#FFFFFF"},
+        ]
+        for i, s in enumerate(starters):
+            await db.social_links.insert_one({
+                "id": str(uuid.uuid4()),
+                "icon": "",
+                "description": "",
+                "is_visible": True,
+                "display_order": i,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "is_deleted": False,
+                **s,
+            })
+        actions.append(f"social_links: created {len(starters)} starters")
+    else:
+        actions.append(f"social_links: {links_count} already exist, skipped")
+
     return {"ok": True, "actions": actions}
 
 # ---------- Diagnostics (safe, no DB writes) ----------
