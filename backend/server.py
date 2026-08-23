@@ -615,7 +615,11 @@ async def diag_seed(force: bool = False, authorized: bool = Depends(verify_token
             likes=["Digital Art", "Fantasy Literature"],
             dislikes=["Technical Difficulties", "Spam Comments"],
             skills=[Skill(name="Live2D Rigging", level=90), Skill(name="Streaming", level=85)],
-            lore=Lore(origin="The Aether", abilities=[], story="Forged in starlight."),
+            lore=Lore(
+                origin="The Aether",
+                backstory="Forged in starlight, cast down to the mortal plane, she now weaves stories between worlds.",
+                currentGoal="Bridge folklore and digital art through the medium of streaming.",
+            ),
             relationships=[],
             designMotifs=["Fox/Kitsune imagery", "Digital glitch effects", "Aether constellations"],
             markings=["Cross", "Crescent"],

@@ -19,6 +19,7 @@ import { useSiteSettings } from '../../context/SiteSettingsContext';
 import { useTwitchLive } from '../TwitchWidget';
 import AuthPill from '../AuthPill';
 import AdminSettingsPanel from '../AdminSettingsPanel';
+import SeedBanner from '../SeedBanner';
 import '../../styles/theme.css';
 
 const TWITCH_CHANNEL = 'veri';
@@ -27,7 +28,7 @@ const MainLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoaded, setIsLoaded] = useState(false);
-  const { character, loading, error } = useCharacter();
+  const { character, loading } = useCharacter();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -44,9 +45,6 @@ const MainLayout = ({ children }) => {
 
   if (loading) {
     return <div className="flex h-screen bg-[#171718] items-center justify-center text-white">Loading...</div>;
-  }
-  if (error) {
-    return <div className="flex h-screen bg-[#171718] items-center justify-center text-red-500">Error: {error}</div>;
   }
 
   return (
@@ -139,6 +137,8 @@ const MainLayout = ({ children }) => {
       <AuthPill />
       {/* Admin Settings Panel (gear button beside the pill, admin-only) */}
       <AdminSettingsPanel />
+      {/* Seed-recovery banner (only when DB is empty) */}
+      <SeedBanner />
 
       {/* Pinned Character Art (Right Side) */}
       {/* Hidden on small screens, fixed on the right on larger screens */}
